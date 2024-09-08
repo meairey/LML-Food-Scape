@@ -1,0 +1,105 @@
+model {
+  
+  ## True abundance model =================
+  for (sp in 1:n_species) {
+    for (i in 1:n_sites) {
+      # Random effect for true abundance
+      u[i, sp] ~ dnorm(0, tau_u)
+      
+      for (t in 1:n_years) {
+        # True abundance model with species-specific intercepts and slopes
+        log(N[i, t, sp]) <- beta0[sp] + beta1[sp] * x[t] + u[i, sp]
+        
+        # Zero-inflation component
+        z[i, t, sp] ~ dbern(psi[i, t, sp])
+        logit(psi[i, t, sp]) <- gamma0[sp] + gamma1[sp] * z_covariate[i, t]
+        
+        # Observation model with zero-inflated Poisson distribution
+        y[i, t, sp] ~ dpois((1 - z[i, t, sp]) * lambda[i, t, sp])
+        lambda[i, t, sp] <- N[i,t, sp] * p[i, t, sp]
+        
+        # Catch probability model with species-specific intercepts and slopes
+        logit(p[i, t, sp]) <- alpha0[sp] + alpha1[sp] * effort[i, t] * habitat[i] + v[i, t, sp] 
+        
+        # Random effect for catch probability
+        v[i, t, sp] ~ dnorm(0, tau_v)
+      }
+    }
+  }
+  
+  # Priors for species-specific parameters
+  for (sp in 1:n_species) {
+    beta0[sp] ~ dnorm(0, 0.001)
+    beta1[sp] ~ dnorm(0, 0.001)
+    alpha0[sp] ~ dnorm(0, 0.001)
+    alpha1[sp] ~ dnorm(0, 0.001)
+    gamma0[sp] ~ dnorm(0, 0.001)
+    gamma1[sp] ~ dnorm(0, 0.001)
+  }
+  
+  tau_u <- pow(sigma_u, -2)
+  sigma_u ~ dunif(0, 10)
+  
+  tau_v <- pow(sigma_v, -2)
+  sigma_v ~ dunif(0, 10)
+
+
+
+## Priors for mass and abundance of taxa
+
+tau_mass ~ dgamma(1, 1) # Prior for precision of average mass
+tau_mass_obs ~ dgamma(1, 1) # Prior for precision of observed mass data
+
+
+## Average mass of each species per lake -----------------------------
+
+# Prior for average mass of each species
+for (i in 1:n_species) {
+  avg_mass[i] ~ dnorm(0, tau_mass)  # Prior for average mass
+}
+
+
+
+# Likelihood for observed mass data (assuming mass_observed_lake is your observed mass data at the lake level)
+for (i in 1:n_species) {
+  for (k in 1:n_obs_mass[i]) {
+    mass_observed_lake[i, k] ~ dnorm(avg_mass[i], tau_mass_obs) 
+    # Likelihood for observed mass data at the lake level
+  }
+}
+
+
+
+## Isotope model ------------------------------------------
+# ----------------------------------
+# define the priors
+# ----------------------------------
+
+# this loop defines the priors for the means
+for (s in 1:n_species) {
+  for (i in 1:n.iso) {
+    mu[s,i] ~ dnorm(0, tau.mu)
+  }
+}
+
+# prior for the precision matrix
+for (s in 1:n_species) {
+  tau[s,1:n.iso, 1:n.iso] ~ dwish(R[1:n.iso, 1:n.iso], k)
+}
+
+# convert to covariance matrix
+for (s in 1:n_species) {
+  Sigma2[s,1:n.iso, 1:n.iso] <- inverse(tau[s,1:n.iso, 1:n.iso]) 
+}
+
+# ----------------------------------------------------
+# specify the likelihood of the observed data
+# ----------------------------------------------------
+
+for (s in 1:n_species) {
+  for (i in 1:n.obs) {                             
+    Y[s,i, 1:2] ~ dmnorm(mu[s,1:n.iso], tau[s,1:n.iso, 1:n.iso])
+  }
+}
+
+}

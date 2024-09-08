@@ -3,7 +3,7 @@ data = read.csv("Data/JML.Data.Master.csv") %>%
   filter(Group %in% "Fish") %>%
   select(Species, C, N) %>% 
   group_by(Species) %>%
-  filter(n() > 3) %>%
+  filter(n() >= 3) %>%
   ungroup() %>%
   arrange(Species) %>% 
   mutate(group = as.numeric(as.factor(Species)),
@@ -46,7 +46,7 @@ for (i in 1:n_species) {
 }
 
 # Save the array as an R object (RData file)
-save(arr, file = "IsotopeArray_early.RData")
+save(arr, file = "Data/EarlyData/IsotopeArray_early.RData")
 
 
 backtrace.early = read.csv("Data/JML.Data.Master.csv") %>%
