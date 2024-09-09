@@ -1,3 +1,5 @@
+library(tidyverse)
+library(raster)
 ## Source and Functions
 source("Data/Models/functions.R")
 
@@ -375,9 +377,9 @@ ellip.filtered %>% filter(post == 1, community == 2)  %>%
 
 ## Standard deviation of community -------------------------
 
-z_comm %>% 
+z.mod %>% 
   group_by(post,community) %>%
-  summarize(sd = sd(tot)) %>%
+  summarize(sd = sd(total_volume)) %>%
   ggplot(aes(x = as.factor(community), y = sd, col = as.factor(community))) +
   geom_boxplot() +
   theme_minimal(base_size = 14) + 
@@ -389,7 +391,7 @@ z_comm %>%
 
 ## Standard deviation of individual species 
 
-ellip %>%
+ellip.filtered %>%
   group_by(post, community, code) %>%
   summarise(mean_sd = sd(string)) %>%
   ggplot(aes(x = code, y = log(mean_sd))) + 
@@ -412,7 +414,7 @@ ellip %>%
 
 cell_size = (abs(cord_min) + abs(cord_max)) / 100
 
-backtrace = backtrace %>% 
+backtrace = back.trace %>% 
   mutate(cell_size = (abs(cord_min) + abs(cord_max)) / 100) %>%
   mutate(cell_size.C = cell_size*sd_C, 
          cell.size.N = cell_size * sd_N)
