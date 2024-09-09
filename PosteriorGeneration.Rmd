@@ -2,7 +2,7 @@
 title: "Untitled"
 author: "Montana"
 date: "2024-09-09"
-output: html_document
+output: md_document
 ---
 
 # Introduction 
