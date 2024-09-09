@@ -48,3 +48,49 @@ legend = data.frame(group = c(1:10),
                     species.early  = species.early,
                     species.late = c(species.late))
 
+
+## Backtracing -------------
+## Early Period -- 
+backtrace.early = read.csv("Data/JML.Data.Master.csv") %>%
+  filter(Group %in% "Fish") %>%
+  select(Species, C, N) %>% 
+  arrange(Species) %>% 
+  mutate(spp = as.numeric(as.factor(Species)),
+         community = 1, 
+         C = as.numeric(C),
+         N = as.numeric(N)) %>%
+  select(community, spp, C, N) %>%
+  rename("iso_1" = "C",
+         "iso_2" = "N") %>%
+  group_by(spp) %>%
+  filter(n() > 3) %>%
+  ungroup() %>%
+  na.omit() %>%
+  group_by(community) %>%
+  summarize(mean_C = mean((iso_1)), sd_C = sd(iso_1),
+            mean_N = mean((iso_2)), sd_N = sd(iso_2)) 
+## Late period -- 
+backtrace.late = read.csv("Data/SI_MEASUREMENT.csv") %>%
+  separate(ISO_YSAMP_N, into = c("SIC", "WATER", "YEAR", "YSAMP")) %>%
+  filter(WATER == "LML",
+         YEAR > 2018, 
+         GROUP == "FISH",
+         SAMPLE_TYPE == "TISSUE") %>%
+  select(TAXON, D13C, D15N) %>% 
+  unique() %>% 
+  arrange(TAXON) %>%
+  rename("iso_1" = "D13C",
+         "iso_2" = "D15N",
+         "group" = TAXON) %>%
+  group_by(group) %>%
+  filter(n() > 3) %>%
+  ungroup() %>%
+  na.omit()  %>%
+  as.data.frame() %>%
+  mutate(community = 2) %>%
+  group_by(community) %>%
+  summarize(mean_C = mean((iso_1)), sd_C = sd(iso_1),
+            mean_N = mean((iso_2)), sd_N = sd(iso_2)) 
+
+
+back.trace = rbind(backtrace.early, backtrace.late)

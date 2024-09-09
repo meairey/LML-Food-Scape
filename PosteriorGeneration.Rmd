@@ -1,0 +1,232 @@
+---
+title: "Untitled"
+author: "Montana"
+date: "2024-09-09"
+output: html_document
+---
+
+# Introduction 
+
+This is an introduction to the components and the generation of the posterior distributions for the foodweb landscapes of Little Moose. Below you will find snippits of code and examples of the data frames that are used during this process. Here we will look at the data frames that are associated with the `step1_LML_source_L.R` file. However, the graphs will display the results of the posterior generation for both the early and late periods of this experiment.
+
+--------------------------------------------------------------------------------
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = F, include = F, warnings = F, message=F}
+## Setup for the markdown
+# Libraries ----------------------
+library(easypackages)
+libraries("snow","plotrix", "SIBER","ellipse","mixtools",
+          "mvtnorm","plot3D","scatterplot3d","scales","viridis","ggplot2",
+          "gridExtra", "MASS","plotly", "knitr","tidyverse", "mvtnorm","rjags")
+
+```
+
+
+```{r, echo = F, message=F, warning=F}
+
+## Load in data -----------------
+
+
+# Sources
+# For functions
+source("Data/Models/functions.R")
+# For starting conditions. This tutorial is for the late period.
+source("Landscapes/LateLandscapes/step1_LML_source_L.R")
+
+## Posterior data frame --------------------
+## Combining chains 
+
+load("Data/LateData/LateJagsOutput.RData")
+
+## Chains generated from previous script 
+chains <- as.mcmc.list(jags_output.late) ## set chains
+chains_combined <- gtable_combine(chains) ## combine chains
+
+```
+
+## Define starting conditions for the model snippits.
+
+For all periods of this experiment, we will be looking at 20 posterior draws `n.posts`, 10 species `n_species`, 32 sites around the shore of Little Moose Lake `n_sites`, and 4 years `n_years`. The early period includes the years 2001-2004 and the late period includes the years 2019-2022.
+
+```{r}
+# Model conditions
+n.posts = 20
+n_species = 10
+n_sites = 32
+n_years = year_max - year_min -1 # seems missing 2023 data?
+
+```
+
+We begin by setting names for the data frame that holds the posterior distributions. These names are composed of useful information that we can later filter by. For example, `N_1_1_1` is the posterior distribution for the estimated true abundance of species 1 at site 1 during the first year of that period. 
+```{r, echo = F, message=F, warning=F}
+# Define names for the 
+names = (data.frame(colnames = colnames(jags_output.late[[1]]))  %>%
+           mutate(colnames = str_replace_all(colnames, "\\[", "_"), 
+                  colnames = str_replace_all(colnames, "\\]", ""),
+                  colnames = str_replace_all(colnames,",", "_")))$colnames
+
+chain_dat = chains_combined %>%
+  as.matrix() %>%
+  as.data.frame() %>%
+  set_names(names)
+
+
+head(chain_dat)[1:5]
+
+```
+But the entire posterior distribution is a large data frame. At this point, we are not subsetting the posterior distribution and the abundances are estimated at each site, at each year, for each species. This results in a large number of columns.
+
+```{r}
+dim(chain_dat)
+```
+
+## Subsetting the compontents of the landscape generation.
+
+We begin with sigma. Sigma represents the shape of the isotope ellipse for each species.It is composed of a covariance matrix.
+
+Below we see an example of the sigma data from the posterior distribution. 
+
+```{r}
+## Clean sigma estimates
+sig.dat = chain_dat %>%
+  select(contains("sigma", ignore.case = TRUE))  %>%
+  as.data.frame() %>% 
+  mutate(post = 1:length(.[,1])) %>%
+  filter(post <= n.posts) %>%
+  select(post, everything()) %>%
+  pivot_longer(2:length(.[1,]), names_to = "metric", 
+               values_to = "sig.value") %>%
+  separate(metric,
+           into = c("metric", "species", 
+                    "sig.order1", "sig.order2")) %>% 
+  mutate(metric = str_remove_all(metric, "[0-9]")) %>%
+  unite("names", c(metric, sig.order1, sig.order2)) %>% 
+  pivot_wider(names_from = names, values_from = sig.value)
+
+head(sig.dat)
+```
+For `species == 1` and `post == 1`, see the below matrix as an example of what the covariance matrix looks like.
+
+```{r, echo = F, message=F, warning = F}
+cov.mat = sig.dat %>% 
+  filter(post == 1, species ==1)
+
+matrix(c(cov.mat$Sigma_1_1, cov.mat$Sigma_1_2, cov.mat$Sigma_2_1, cov.mat$Sigma_2_2),ncol = 2, nrow = 2)
+```
+
+
+
+```{r}
+## Clean length estimates
+mass.dat = chain_dat %>%
+  select(contains("avg_mass", ignore.case = TRUE))  %>%
+  as.data.frame() %>%
+  mutate(post = 1:length(.[,1])) %>%
+  filter(post <= n.posts) %>%
+  select(post, everything()) %>%
+  pivot_longer(2:length(.[1,]),
+               names_to = "metric", values_to = "mass.avg") %>%
+  separate(metric, into = c("metric1","metric", "species"), sep = "_") %>%
+  select(-metric1, -metric)
+
+```
+
+```{r}
+# Clean abund estimates -- this does it year by year
+abund.dat =  chain_dat %>%
+  as.data.frame() %>%
+  select(contains("N", ignore.case = TRUE)) %>%
+  
+  mutate(post = 1:length(.[,1])) %>%
+  filter(post <= n.posts) %>%
+  select(post, everything()) %>% 
+  #
+  pivot_longer(2:((n_species * n_years * n_sites)+1),
+               names_to = "metric", 
+               values_to = "value") %>%
+  separate(metric, into = c("metric", "site", "year", "species")) %>%
+  mutate(species = as.numeric(species),
+         site = as.numeric(site),
+         post = as.numeric(post), 
+         year = as.numeric(year)) %>%
+  group_by(post, species, year) %>%
+  summarize(tot_abund = sum(value)) %>%
+  mutate(species = as.character(species))
+
+head(abund.dat)
+
+
+```
+
+See below for a comparison between the estimated total abundance for both periods.
+```{r, echo = F, messages = F, warning = F}
+
+## Let's compare the early and late abundances...
+load("Data/posterior_early.csv")
+load("Data/posterior_late.csv")
+## Legend
+species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
+legend = data.frame(group = c(1:10), 
+                    species  = species.late)
+
+## Comparison of posterior parameter distributions
+
+posterior.early$community = 1
+posterior.late$community = 2
+
+posterior = rbind(posterior.early, posterior.late)
+posterior %>% 
+  mutate(group = as.numeric(species)) %>%
+  select(-species) %>%
+  left_join(legend) %>%
+  ggplot(aes(x = as.factor(community), y = tot_abund)) + 
+  geom_boxplot() +
+  scale_y_log10() +
+  facet_wrap(~species, scales = "free") +
+  xlab("Period") +
+  ylab("Total Abundance") +
+  theme_minimal(base_size = 12) +
+  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+
+```
+
+```{r}
+# Clean mu estimates
+mu.dat = chain_dat %>%
+  as.data.frame() %>% 
+  select(contains("mu", ignore.case = TRUE)) %>%
+  mutate(post = 1:length(.[,1])) %>%
+  filter(post <= n.posts) %>%
+  select(post, everything()) %>%
+  pivot_longer(2:length(.[1,]), names_to = "metric", values_to = "mu.value") %>% 
+  separate(metric, into = c("metric", "species", "isotope")) %>% 
+  unite("names", c(metric, isotope)) %>%
+  pivot_wider(names_from = names, values_from = mu.value)
+
+```
+
+
+
+```{r}
+
+
+## Final posterior frame
+posterior.late = left_join(sig.dat, mass.dat) %>% 
+  left_join(abund.dat) %>%
+  left_join(mu.dat) %>%
+  group_by(post, species) %>%
+  select(year, everything()) %>%
+  summarize(across(2:9, mean, na.rm = TRUE))
+
+save(file = "Data/posterior_late.csv", posterior.late)
+```
+
+
+
+
+
+
