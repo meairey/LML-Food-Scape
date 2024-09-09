@@ -1,9 +1,50 @@
 ## Source and Functions
 source("Data/Models/functions.R")
+
 load("Data/posterior_early.csv")
+load("Data/posterior_late.csv")
+## Legend
+species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
+legend = data.frame(group = c(1:10), 
+                    species  = species.late)
+
+## Comparison of posterior parameter distributions
+
+posterior.early$csv = 1
+posterior.late$csv = 2
+
+posterior = rbind(posterior.early, posterior.late)
+
+posterior %>% 
+  mutate(group = as.numeric(species)) %>%
+  select(-species) %>%
+  left_join(legend) %>%
+  ggplot(aes(x = as.factor(csv), y = tot_abund)) + 
+  geom_boxplot() +
+  scale_y_log10() +
+  facet_wrap(~species, scales = "free") +
+  xlab("Period") +
+  ylab("Total Abundance") +
+  theme_minimal(base_size = 12) +
+  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+
+##
+
+posterior %>% 
+  mutate(group = as.numeric(species)) %>%
+  select(-species) %>%
+  left_join(legend) %>%
+  ggplot(aes(x = as.factor(csv), y = mass.avg)) + 
+  geom_boxplot() +
+  #scale_y_log10() +
+  facet_wrap(~species, scales = "free") +
+  xlab("Period") +
+  ylab("Average Mass (g)") +
+  theme_minimal(base_size = 12) +
+  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
 
 n_species = 10
-
+n.posts = 20
 # Ellipse generation ----------
 
 ## Coord limits
@@ -19,8 +60,8 @@ xy_length = 100
 ## New type of heat map with averages from posterior
 #posterior = posterior.early
 #posterior.save = posterior
-posterior = posterior.early %>% 
-  group_by(species) %>%
+posterior = posterior %>% 
+  group_by(csv, species) %>%
   summarize(Sigma_1_1 = mean(Sigma_1_1), 
             Sigma_2_1 = mean(Sigma_2_1), 
             Sigma_1_2 = mean(Sigma_1_2),
@@ -30,27 +71,29 @@ posterior = posterior.early %>%
             mu_C = mean(mu_1),
             mu_N = mean(mu_2)) %>%
   mutate(post = 1) %>%
-  select(post, species, Sigma_1_1, Sigma_2_1, Sigma_1_2, Sigma_2_2, length.avg, tot_abund, mu_C, mu_N) 
+  select(csv, post, species, Sigma_1_1, Sigma_2_1, Sigma_1_2, Sigma_2_2, length.avg, tot_abund, mu_C, mu_N) 
 
 
 
 ## ellip dataframe for the mean landscape (visualization only)
-ellip.mean = ellip.data(100, 1, n_species)
+ellip.mean = ellip.data(100, 1, length(unique(posterior$species)), length(unique(posterior$csv)))
 # Cluster to create heights
 clo = makeCluster(workers) # Create workers
 clusterEvalQ(clo, c(library(mvtnorm), library(SIBER), library(dplyr))) # Set up packages on the cluster
-clusterExport(clo, list = c("posterior", "ellipfunc")) # #Export dependants
+clusterExport(clo, list = c("posterior.summary", "ellipfunc")) # #Export dependants
 ellip.mean$string = parRapply(clo,ellip.mean, # run the ellipfun across the coords
                               function(x) ellipfunc(xax = x[3],
                                                     yax = x[4],
                                                     post_n = x[2],
-                                                    spp = x[1]))
+                                                    spp = x[1],
+                                                    csv_n = x[5]))
 stopCluster(clo) ## stop workers/cluster
 
 
 # Filter the data frame string
 ellip.mean.filtered = ellip.mean %>% 
-  filter_ellip.data(., n_species) 
+  filter_ellip.data(., 10, 2) 
+
 
 # Facet wrap heat maps to see individual ellipses
 ellip.mean.filtered %>% 
@@ -63,7 +106,7 @@ ellip.mean.filtered %>%
 
 ## Filtered heatmap with landscape for all species
 ellip.mean.filtered %>%
-  group_by(xax, yax) %>%
+  group_by(csv, xax, yax) %>%
   summarize(vol = sum(string)) %>%
   #filter(xax < 3) %>%
   ggplot(aes(x = xax, y = yax, fill = log(vol))) +
@@ -71,8 +114,19 @@ ellip.mean.filtered %>%
   scale_fill_viridis() +
   theme_minimal() + 
   labs(fill = "Z height") + 
-  ggtitle("Nick's Circles")
+  ggtitle("Nick's Circles") + 
+  facet_wrap(~csv)
 
+
+ellip.mean %>%
+  filter(csv == 1) %>%
+  ggplot(aes(x = xax, y = yax)) + 
+  geom_point()
+
+ellip.mean %>%
+  filter(csv == 2, spp == 2 ) %>%
+  ggplot(aes(x = xax, y = yax)) + 
+  geom_point()
 
 
 ## Trying out backtracing

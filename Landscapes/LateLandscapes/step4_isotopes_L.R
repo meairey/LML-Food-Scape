@@ -25,13 +25,49 @@ data.late = read.csv("Data/SI_MEASUREMENT.csv") %>%
   na.omit() %>%
   select(community, group, iso_1, iso_2)
 
-df = data.late  %>% 
+
+
+
+
+### Filtering in the species (modifying from early data)
+
+### Early isotope values ----------------------------
+data.early = read.csv("Data/JML.Data.Master.csv") %>%
+  filter(Group %in% "Fish") %>%
+  select(Species, C, N) %>% 
+  group_by(Species) %>%
+  filter(n() >= 3) %>%
+  ungroup() %>%
+  arrange(Species) %>% 
+  mutate(  community = 1,
+           group = Species) %>%
+  select(community, group, C, N) %>%
+  rename("iso_1" = "C",
+         "iso_2" = "N") %>%
+  
+  ungroup() %>%
+  na.omit()  %>%
+  mutate(iso_1 = scale(as.numeric(iso_1)),
+         iso_2 = scale(as.numeric(iso_2))) %>%
+  na.omit() %>% 
+  filter(group %in% c("BB", "LT","SS", "WS", "RS"))
+
+
+
+
+##  Combining data ------------------
+
+data = rbind(data.early, data.late)
+
+df = data %>% 
+  arrange(group) %>%
+  mutate(group = as.numeric(as.factor(group))) %>%
   group_by(group) %>% 
   mutate(num = c(1:length(group))) %>%
   ungroup() %>%
   complete(group, num) %>%
-  rename("species" = "group") %>%
-  mutate(species = as.numeric(as.factor(species)))
+  rename("species" = "group")
+
 
 n_species = length(unique(df$species))
 # Create an empty 3D array
@@ -47,7 +83,8 @@ for (i in 1:n_species) {
                        nrow = nrow(subset_df), byrow = FALSE)
 }
 
-save( file = "IsotopeArray_late.RData", arr)
+
+save( file = "Data/LateData/IsotopeArray_late.RData", arr)
 
 
 ## backtrace late

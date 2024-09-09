@@ -1,13 +1,13 @@
 library(tidyverse)
 
-source("Landscapes/EarlyLandscapes/step1_LML_source.R")
+source("Landscapes/LateLandscapes/step1_LML_source_L.R")
 ## Load in weight frame from length_weight.R script
 
 
 weight.frame = read.csv("Data/weight_frame.csv", header = T)
 
 ## using estimated weights
-observed_lengths.early = weight.frame %>% 
+observed_lengths.late = weight.frame %>% 
   arrange(SPECIES) %>%
   select(SPECIES, YEAR,weight_e) %>% 
   filter(SPECIES %in% species.early) %>%
@@ -25,13 +25,13 @@ observed_lengths.early = weight.frame %>%
   select(-YEAR) %>%
   column_to_rownames(var = "SPECIES")
 
-save(file = "Data/EarlyData/observed_lengths_early.RData", observed_lengths.early)
+save(file = "Data/LateData/observed_lengths_late.RData", observed_lengths.late)
 
 #how many length observations for each species
 # Count the number of non-NA values in each row
-n_obs_mass.early = (observed_lengths.early %>%
+n_obs_mass.late = (observed_lengths.late %>%
   rowwise() %>%
   mutate(n = sum(!is.na(c_across(everything())))) %>%
   ungroup())$n
 
-save(file = "Data/EarlyData/n_obs_mass_early.RData", n_obs_mass.early)
+save(file = "Data/LateData/n_obs_mass_late.RData", n_obs_mass.late)

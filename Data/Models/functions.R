@@ -2,10 +2,14 @@
 
 ## Ellip function
 
-ellipfunc = function(xax,yax,spp,post_n){
+spp = 1;post_n = 1; csv_n =1
+
+ellipfunc = function(xax,yax,spp,post_n, csv_n){
   
-  dat.ellipfunc = posterior %>% filter(species == spp,## Filter out the species 
-                                       post == post_n) ## Filter out the posterior draw
+  dat.ellipfunc = posterior.summary %>%
+    ungroup() %>% filter(species == spp,## Filter out the species 
+                                       post == post_n, 
+                                       csv == csv_n) ## Filter out the posterior draw
   
   ## For each posterior draw for each species, calculate the height of the ellipse
   z =as.vector(dat.ellipfunc$tot_abund) * # abundance
@@ -19,45 +23,51 @@ ellipfunc = function(xax,yax,spp,post_n){
   return(z)
 }
 
-
-
-
-
-filter_ellip.data = function(x,spp){
+## Multiple CSV filter
+filter_ellip.data = function(x,spp, csv){
   
   ## Define pop density and body size of species 
-  
-  
-  
-  
-  
-  
-  for(i in 1:n.posts){
-    for(h in 1:spp){
-      max = as.numeric(x %>% 
-                         filter(post == i, spp == h) %>%
-                         summarise(max = max(string)))
-      remove = max*.1
-      if((h == 1) & (i == 1)){
-        ellip = x %>% filter(spp == h,
+  for(z in 1:csv){
+    for(i in 1:n.posts){
+      for(h in 1:spp){
+        max = as.numeric(x %>% 
+                           filter(post == i, spp == h, csv == z) %>%
+                           summarise(max = max(string)))
+        remove = max*.1
+        if((h == 1) & (i == 1)){
+          ellip = x %>% filter(spp == h,
+                               post == i,
+                               csv == z,
+                               string >= remove)
+        }else{
+          new = x %>% filter(spp == h, 
                              post == i,
-                             string >= remove)
-      }else{
-        new = x %>% filter(spp == h, 
-                           post == i,
-                           string >= remove) 
-        ellip = rbind(ellip, new)
+                             csv == z,
+                             string >= remove) 
+          ellip = rbind(ellip, new)
+        }
       }
     }
+    
+    if(z == 1){
+      ellip.1 = ellip
+    }else{
+      ellip.2 = ellip
+    }
+    
+    
   }
-  return(ellip)
+  
+  
+  
+  ellip.full = rbind(ellip.1, ellip.2)
+    return(ellip.full)
 }
-
 
 
 ## Fitting ellipses
 ## I think this will be done best by looping through species?
-ellip.data = function(xy_length, post_draws,spp){
+ellip.data = function(xy_length, post_draws, spp, csv){
   
   ## Define pop density and body size of species 
   
@@ -78,17 +88,21 @@ ellip.data = function(xy_length, post_draws,spp){
   
   
   df.ellip = data.frame(
-    spp = rep(1:spp, each = length(x.p)^2*n.posts),
-    post = rep(rep(1:n.posts, each =length(x.p)^2),spp), 
-    xax = rep(rep(rep(x.p, length(x.p)),n.posts),spp),
-    yax = rep(rep(rep(y.p,each = length(x.p)),n.posts),spp))
+    spp = rep(rep(1:spp, each = length(x.p)^2*n.posts), 2),
+    post = rep(rep(rep(1:n.posts, each =length(x.p)^2),spp),  2), 
+    xax = rep(rep(rep(rep(x.p, length(x.p)),n.posts),spp),  2),
+    yax = rep(rep(rep(rep(y.p,each = length(x.p)),n.posts),spp),  2),
+    csv = rep(1:csv, each = (length(x.p)^2)*spp*n.posts)
+    )
   
   
   
   return(df.ellip)
 }
 
-
+n.posts = 20
+length(rep(rep(1:spp, each = length(x.p)^2*n.posts), by = 1))
+length(rep(rep(rep(1:n.posts, each =length(x.p)^2),spp), 2))
 
 
 

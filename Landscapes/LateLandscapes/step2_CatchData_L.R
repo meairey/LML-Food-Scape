@@ -1,7 +1,7 @@
 library(tidyverse)
 library(rjags)
 setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape/")
-source("Landscapes/EarlyLandscapes/step1_LML_source.R")
+source("Landscapes/LateLandscapes/step1_LML_source_L.R")
 
 ## I'm a little worried that the multiple observation issue is going to catch up again here. But, for now, I'm simplifying this by just taking average catch and average effort for each site in each year. Not putting in each separately.
 
@@ -45,7 +45,7 @@ effort = step_a %>%
   mutate_all(~replace(., is.na(.), epsilon)) %>% # Make all NA's a very small value
   t()
 # Save object
-save(effort, file = "Data/EarlyData/early_effortdata.RData")
+save(effort, file = "Data/LateData/late_effortdata.RData")
 
 ### Species data matrix 
 # Get the list of unique species
@@ -90,6 +90,6 @@ for (i in seq_along(species)) {
   array_data[,,i] <- species_matrices[[i]]
 }
 
-save(file = "Data/EarlyData/Early_arraydata.RData", array_data)
+save(file = "Data/LateData/late_arraydata.RData", array_data)
 
 

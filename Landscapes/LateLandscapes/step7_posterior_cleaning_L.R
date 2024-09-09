@@ -10,16 +10,16 @@ setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/foodweb-landscapes")
 
 # Source--------------
 # For functions
-source("Working scripts/functions/bef_functions.R")
-
+source("Data/Models/functions.R")
+source("Landscapes/LateLandscapes/step1_LML_source_L.R")
 n.posts = 20
 
 ## Posterior data frame --------------------
 ## Combining chains 
 
-load("Data/EarlyData/EarlyJagsOutput.RData")
+load("Data/LateData/LateJagsOutput.RData")
 
-chains <- as.mcmc.list(jags_output) ## set chains
+chains <- as.mcmc.list(jags_output.late) ## set chains
 chains_combined <- gtable_combine(chains) ## combine chains
 
 
@@ -27,7 +27,7 @@ chains_combined <- gtable_combine(chains) ## combine chains
 
 
 # Define names for the 
-names = (data.frame(colnames = colnames(jags_output[[1]]))  %>%
+names = (data.frame(colnames = colnames(jags_output.late[[1]]))  %>%
            mutate(colnames = str_replace_all(colnames, "\\[", "_"), 
                   colnames = str_replace_all(colnames, "\\]", ""),
                   colnames = str_replace_all(colnames,",", "_")))$colnames
@@ -127,12 +127,12 @@ mu.dat = chain_dat %>%
 
 
 ## Final posterior frame
-posterior.early = left_join(sig.dat, mass.dat) %>% 
+posterior.late = left_join(sig.dat, mass.dat) %>% 
   left_join(abund.dat) %>%
   left_join(mu.dat) %>%
   group_by(post, species) %>%
   select(year, everything()) %>%
   summarize(across(2:9, mean, na.rm = TRUE))
 
-save(file = "Data/posterior_early.csv", posterior.early)
+save(file = "Data/posterior_late.csv", posterior.late)
 

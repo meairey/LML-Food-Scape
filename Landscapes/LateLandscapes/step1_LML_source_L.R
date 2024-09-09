@@ -40,11 +40,11 @@ species.early = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 
 ## Set parameters for the model run
-year_max = 2005
-year_min = 2001
+year_max = 2023
+year_min = 2019
 species = species.early
 ## Graphing 
 legend = data.frame(group = c(1:10), 
                     species.early  = species.early,
-                    species.late = c(species.late, "NA","NA","NA","NA"))
+                    species.late = c(species.late))
 

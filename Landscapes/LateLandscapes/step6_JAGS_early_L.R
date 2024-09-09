@@ -22,10 +22,10 @@ set.seed(123)
 
 
 
-# Loading in all Jags Dat from other scripts -------
+# Loading in all Jags Data from other scripts -------
 
 #### Load in Isotope Data ----------
-load("Data/EarlyData/IsotopeArray_early.RData")
+load("Data/LateData/IsotopeArray_late.RData")
 # Number of observations
 n.obs <- dim(arr)[2]
 # Number of isotopes
@@ -33,27 +33,27 @@ n.iso <- dim(arr)[3]
 
 #### Load in Mass Data ----------
 
-load("Data/EarlyData/n_obs_mass_early.RData")
-load("Data/EarlyData/observed_lengths_early.RData")
+load("Data/LateData/n_obs_mass_late.RData")
+load("Data/LateData/observed_lengths_late.RData")
 
 #### Load in Effort Data --------
 
 ## Load in effort data
-load("Data/EarlyData/early_effortdata.RData")
+load("Data/LateData/late_effortdata.RData")
 
 
 #### Load in the Catch Data --------------
-load("Data/EarlyData/Early_arraydata.RData")
+load("Data/LateData/Late_arraydata.RData")
 
 # Number of sites, years, and species
-n_sites <- dim(species_cpue.data)[2] -2
+n_sites <- dim(effort)[1]
 n_years <- dim(effort)[2]
 n_species <- dim(array_data)[3]
 
 #### Load in covariates -------------------
-load("Data/EarlyData/habs_cov.RData")
-load("Data/EarlyData/covariate_temp.RData")
-load("Data/EarlyData/z_covariate.RData")
+load("Data/LateData/habs_cov.RData")
+load("Data/LateData/covariate_temp.RData")
+load("Data/LateData/z_covariate.RData")
 # Jags Data
 alpha <- 1
 # Jags Data
@@ -86,14 +86,14 @@ data_list <- list(
   effort = effort,
   
   # Covariates
-  x = covariate_T, # temp for early model
+  x = covariate_T, # temp for late model
   z_covariate =  matrix(z_covariate, nrow = n_sites, ncol = n_years),
   habitat = covariate_hab,
   
   
   # Mass data
-  mass_observed_lake = observed_lengths.early,
-  n_obs_mass = n_obs_mass.early,
+  mass_observed_lake = observed_lengths.late,
+  n_obs_mass = n_obs_mass.late,
   
   # Isotope data
   "n.obs" = n.obs,
@@ -132,11 +132,11 @@ jags_parameters = c("avg_mass","N", "mu", "Sigma2")
 jags_model <- jags.model(textConnection(zero.inflated.model), 
                          data = data_list, 
                          n.chains = parms$n.chains)
-jags_output.early <- coda.samples(jags_model, 
+jags_output.late <- coda.samples(jags_model, 
                             variable.names = jags_parameters, 
                             n.iter = parms$n.iter, 
                             thin = parms$n.thin,
                             inits = inits)
 
 
-save(file = "Data/EarlyData/EarlyJagsOutput.RData", jags_output.early)
+save(file = "Data/LateData/LateJagsOutput.RData", jags_output.late)
