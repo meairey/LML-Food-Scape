@@ -119,10 +119,20 @@ matrix(c(cov.mat$Sigma_1_1, cov.mat$Sigma_1_2, cov.mat$Sigma_2_1, cov.mat$Sigma_
 ```
 
 
-The mass data is generated through the use of length and weight relationships for species in Little Moose Lake. The one exception here is brown bullhead. For brown bullhead, we use weight-length relationships that are available on FishBase from previously published research.
+The mass data is generated through the use of length and weight relationships for species in Little Moose Lake. The one exception here is brown bullhead. For brown bullhead, we use weight-length relationships that are available on FishBase from previously published research.Below, the estimated length-weight relationships are represented by a colored curve. The observed length-weight data is displayed. 
 
-```{r}
-#mass weight graph
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+weight.frame = read.csv("Data/weight_frame.csv")
+
+weight.frame %>%
+  ggplot(aes(y = LENGTH, x = as.numeric(weight_e), col = SPECIES)) + 
+  geom_point(aes(y = LENGTH, x = WEIGHT), col = "black", alpha = .5, key_glyph = "rect") +
+  geom_smooth() +
+  facet_wrap(~SPECIES, scales = "free") + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  xlab("Weight (g)") + 
+  ylab("Length (mm)")
 ```
 
 See below the structure of the mass data.
@@ -146,32 +156,61 @@ Comparing the masses of fishes bewteen the two periods. Data from the posterior 
 
 ```{r, message = F, echo = F, warning = F}
 ## Let's compare the early and late periods...
-load("Data/posterior_early.csv")
+load("Data/posterior_pre.csv")
 load("Data/posterior_late.csv")
+load("Data/posterior_early.csv")
 ## Legend
 species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 legend = data.frame(group = c(1:10), 
                     species  = species.late)
 
 ## Comparison of posterior parameter distributions
+load("Data/posterior_early.csv")
+load("Data/posterior_late.csv")
+load("Data/posterior_pre.csv")
+## Legend
+species= c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
+species.pre = c("BB", "CC","CS","PS","SMB","SS","WS")
+legend = data.frame(group = as.character(c(1:10)), 
+                    species  = species, 
+                    species.pre = c(species.pre, rep("NA", 3)))
 
-posterior.early$community = 1
-posterior.late$community = 2
+## Comparison of posterior parameter distributions
+posterior.pre = posterior.pre %>%
+  rename("group" = "species") %>% 
+  left_join(legend) %>%
+  mutate(community = 1) %>%
+  mutate(species = species.pre) %>%
+  select(-species.pre)
+posterior.early = posterior.early %>%
+  rename("group" = "species") %>% 
+  left_join(legend) %>%
+  mutate(community = 2) %>%
+  select(-species.pre)
+posterior.late = posterior.late %>%
+  rename("group" = "species") %>% 
+  left_join(legend) %>%
+  mutate(community = 3) %>%
+  select(-species.pre)
 
-posterior = rbind(posterior.early, posterior.late)
+posterior = rbind(posterior.pre, posterior.early, posterior.late)
+
+
+
+##
 
 posterior %>% 
-  mutate(group = as.numeric(species)) %>%
-  select(-species) %>%
+  mutate(group =species) %>%
+ 
   left_join(legend) %>%
   ggplot(aes(x = as.factor(community), y = mass.avg)) + 
   geom_boxplot() +
-  scale_y_log10() +
+  #scale_y_log10() +
   facet_wrap(~species, scales = "free") +
   xlab("Period") +
-  ylab("Total Abundance") +
+  ylab("Average Mass (g)") +
   theme_minimal(base_size = 12) +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
 ```
 
@@ -206,11 +245,9 @@ head(abund.dat)
 See below for a comparison between the estimated total abundance for both periods.
 ```{r, echo = F, messages = F, warning = F}
 
-
 posterior %>% 
-  mutate(group = as.numeric(species)) %>%
-  select(-species) %>%
-  left_join(legend) %>%
+  mutate(group = (species)) %>%
+
   ggplot(aes(x = as.factor(community), y = tot_abund)) + 
   geom_boxplot() +
   scale_y_log10() +
@@ -218,7 +255,7 @@ posterior %>%
   xlab("Period") +
   ylab("Total Abundance") +
   theme_minimal(base_size = 12) +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
 ```
 
@@ -260,8 +297,7 @@ posterior.late = left_join(sig.dat, mass.dat) %>%
 
 ```
 ```{r, echo = FALSE, warning = FALSE, message=FALSE}
-posterior.late %>% select(community, everything()) %>%
-  head() 
+
 ```
 
 

@@ -63,7 +63,7 @@ for (i in 1:n_species) {
 # Likelihood for observed mass data (assuming mass_observed_lake is your observed mass data at the lake level)
 for (i in 1:n_species) {
   for (k in 1:n_obs_mass[i]) {
-    mass_observed_lake[i, k] ~ dnorm(avg_mass[i], tau_mass_obs) 
+    mass_observed_lake[i, k] ~ dlnorm(avg_mass[i], tau_mass_obs) 
     # Likelihood for observed mass data at the lake level
   }
 }

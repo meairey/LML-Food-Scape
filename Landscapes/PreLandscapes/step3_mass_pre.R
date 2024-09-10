@@ -16,7 +16,7 @@ observed_lengths.pre= weight.frame %>%
   
   arrange(SPECIES, YEAR) %>% 
   group_by(SPECIES, YEAR) %>%
-  slice_head(n = 100) %>%
+  slice_head(n = 10) %>%
   mutate(YEAR =1) %>%
   group_by(SPECIES) %>%
   mutate(individuals = c(1:length(SPECIES)))%>%
@@ -24,6 +24,14 @@ observed_lengths.pre= weight.frame %>%
   as.data.frame() %>%
   select(-YEAR) %>%
   column_to_rownames(var = "SPECIES")
+
+t(observed_lengths.pre) %>% 
+  as.data.frame() %>%
+  mutate(ind = 1:100) %>%
+  select(ind, everything()) %>%
+  pivot_longer(2:length(.[1,])) %>%
+  group_by(name) %>%
+  summarize(mean = mean(value))
 
 save(file = "Data/PreData/observed_lengths_pre.RData", observed_lengths.pre)
 

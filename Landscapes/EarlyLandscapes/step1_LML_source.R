@@ -45,6 +45,5 @@ year_min = 2001
 species = species.early
 ## Graphing 
 legend = data.frame(group = c(1:10), 
-                    species.early  = species.early,
-                    species.late = c(species.late, "NA","NA","NA","NA"))
+                    species  = species.early)
 

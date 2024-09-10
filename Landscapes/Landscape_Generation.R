@@ -117,11 +117,11 @@ ellip.mean$string = parRapply(clo,ellip.mean, # run the ellipfun across the coor
 stopCluster(clo) ## stop workers/cluster
 
 
-ellip.mean %>% filter(spp == 9, community == 2)
+ellip.mean %>% filter(spp == 4, community == 1)
 
 # Filter the data frame string
 ellip.mean.filtered = ellip.mean %>% 
-  na.omit()
+  na.omit() %>%
   filter_ellip.data(., 10, 3) 
 
 
@@ -130,7 +130,7 @@ ellip.mean.filtered %>%
   mutate(spp = as.character(spp)) %>%
   left_join(legend,by = c("spp" = "group")) %>% 
   ggplot(aes(x= xax, y = yax, col =as.factor(community))) +
-  geom_point() + 
+  geom_jitter(alpha = .15) + 
   facet_wrap(~species) 
 
 ## Filtered heatmap with landscape for all species
@@ -141,7 +141,7 @@ ellip.mean.filtered %>%
   summarize(vol = sum(string)) %>%
   ungroup() %>%
   ggplot(aes(x = xax, y = yax, col = (vol))) +
-  geom_point(size = 3) +
+  geom_point(size = 5) +
 
   scale_color_viridis() +
   theme_minimal() + 
@@ -160,17 +160,26 @@ ellip.mean.filtered %>%
 
 # Ellip coordinates ------------
 ## Redefine posterior because we had to overwrite it for the past chunk. The only other solution I can think of here is creating a second function that does the average visualization
-posterior = rbind(posterior.early, posterior.late) %>% ## This needs to be averaged across years...
+posterior = rbind(posterior.pre, posterior.early, posterior.late) %>%
+  
   rename("mu_C" = "mu_1", ## need to make sure have conforming names with function
-         "mu_N" = "mu_2")
+         "mu_N" = "mu_2")%>%
+  select(community, post,  species, Sigma_1_1, Sigma_2_1, Sigma_1_2, Sigma_2_2, mass.avg, tot_abund, mu_C, mu_N) %>%
+  ungroup() %>%
+  arrange(species) %>%
+  mutate(group = as.numeric(as.factor(species))) %>%
+  complete(group, community, post) %>%
+  select(-species) %>%
+  rename("species" = "group")  
          
 
 
 
 
 
+ellip = ellip.data(xy_length, n.posts, 10,3)
 
-ellip = ellip.data(xy_length, n.posts, 10,2)
+
 
 # Cluster to create heights
 clo = makeCluster(workers) # set up cluster

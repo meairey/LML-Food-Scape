@@ -73,10 +73,10 @@ mass.dat %>%
   rename("group" = "species") %>% 
   mutate(group = as.numeric(group)) %>%
   left_join(legend, by = c(group = "group")) %>%
-  ggplot(aes(x = species, y = mass.avg))  +
+  ggplot(aes(x = species, y = exp(mass.avg)))  +
   geom_boxplot() +
   theme_minimal() + 
-  #scale_y_log10() +
+  scale_y_log10() +
   ylab("Avg. Mass (g)") +
   xlab("Species") +
   labs(col = "Species")

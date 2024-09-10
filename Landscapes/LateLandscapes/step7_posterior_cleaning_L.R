@@ -3,7 +3,7 @@ library(easypackages)
 libraries("snow","plotrix", "SIBER","ellipse","mixtools",
           "mvtnorm","plot3D","scatterplot3d","scales","viridis","ggplot2",
           "gridExtra", "MASS","plotly", "knitr","tidyverse", "mvtnorm")
-setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/foodweb-landscapes")
+
 
 ## Load in data -----------------
 
@@ -13,7 +13,9 @@ setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/foodweb-landscapes")
 source("Data/Models/functions.R")
 source("Landscapes/LateLandscapes/step1_LML_source_L.R")
 n.posts = 20
-
+n_species = 10
+n_years = year_max - year_min
+n_sites = 32
 ## Posterior data frame --------------------
 ## Combining chains 
 
@@ -66,6 +68,20 @@ mass.dat = chain_dat %>%
   separate(metric, into = c("metric1","metric", "species"), sep = "_") %>%
   select(-metric1, -metric)
 
+# Figure for looking at the mass data
+mass.dat %>%
+  rename("group" = "species") %>% 
+  mutate(group = as.numeric(group)) %>%
+  left_join(legend, by = c(group = "group")) %>%
+  ggplot(aes(x = species, y = exp(mass.avg)))  +
+  geom_boxplot() +
+  theme_minimal() + 
+  scale_y_log10() +
+  ylab("Avg. Mass (g)") +
+  xlab("Species") +
+  labs(col = "Species")
+
+
 # Clean abund estimates -- this does it year by year
 abund.dat =  chain_dat %>%
   as.data.frame() %>%
@@ -75,7 +91,7 @@ abund.dat =  chain_dat %>%
   filter(post <= n.posts) %>%
   select(post, everything() ) %>% 
   #
-  pivot_longer(2:((n_species * n_years * n_sites)+1),
+  pivot_longer(2:length(.[1,]),
                names_to = "metric", 
                values_to = "value") %>%
   separate(metric, into = c("metric", "site", "year", "species")) %>%

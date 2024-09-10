@@ -30,13 +30,13 @@ can later filter by. For example, `N_1_1_1` is the posterior
 distribution for the estimated true abundance of species 1 at site 1
 during the first year of that period.
 
-    ##       N_1_1_1     N_2_1_1    N_3_1_1    N_4_1_1   N_5_1_1
-    ## 1 0.035337345 0.108678941 0.05596628 0.11475847 0.3600164
-    ## 2 0.008856450 0.046882053 0.08252995 0.03635013 0.2221019
-    ## 3 0.038505263 0.042515693 0.15140276 0.21532147 0.1323097
-    ## 4 0.041942243 0.006066467 0.08543462 0.20881001 0.3668654
-    ## 5 0.005216185 0.079404302 0.01210736 0.01455679 0.1950053
-    ## 6 0.072742179 0.025864737 0.20561266 0.17720656 0.5387817
+    ##      N_1_1_1    N_2_1_1     N_3_1_1    N_4_1_1    N_5_1_1
+    ## 1 0.59851781 0.12491576 0.064379147 0.06836586 0.19647239
+    ## 2 0.06378990 0.13306315 0.011529180 0.07449898 0.11340538
+    ## 3 0.09515627 0.18297682 0.053681820 0.04944066 0.05948898
+    ## 4 0.17242836 0.08188777 0.105136107 0.05425963 1.28713593
+    ## 5 0.02373143 0.05949342 0.008167276 0.01352229 0.03003464
+    ## 6 0.08046364 0.35059761 0.033201200 0.03798621 0.07619797
 
 But the entire posterior distribution is a large data frame. At this
 point, we are not subsetting the posterior distribution and the
@@ -58,39 +58,41 @@ distribution.
     ## # A tibble: 6 × 6
     ##    post species Sigma_1_1 Sigma_2_1 Sigma_1_2 Sigma_2_2
     ##   <int> <chr>       <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1     1 1           0.478   -0.417    -0.417      1.88 
-    ## 2     1 2           1.10    -0.236    -0.236      0.206
-    ## 3     1 3           0.147   -0.0368   -0.0368     1.45 
-    ## 4     1 4           0.312    0.168     0.168      0.287
-    ## 5     1 5           1.26    -0.462    -0.462      0.592
-    ## 6     1 6           2.14     1.10      1.10       1.36
+    ## 1     1 1           1.36    -0.301    -0.301      0.741
+    ## 2     1 2           0.659   -0.0269   -0.0269     0.137
+    ## 3     1 3           0.163   -0.140    -0.140      0.637
+    ## 4     1 4           0.341    0.187     0.187      0.321
+    ## 5     1 5           0.885   -0.0689   -0.0689     0.406
+    ## 6     1 6           1.63     0.518     0.518      0.954
 
 For `species == 1` and `post == 1`, see the below matrix as an example
 of what the covariance matrix looks like.
 
     ##            [,1]       [,2]
-    ## [1,]  0.4783136 -0.4167384
-    ## [2,] -0.4167384  1.8750666
+    ## [1,]  1.3585628 -0.3012338
+    ## [2,] -0.3012338  0.7407447
 
 The mass data is generated through the use of length and weight
 relationships for species in Little Moose Lake. The one exception here
 is brown bullhead. For brown bullhead, we use weight-length
 relationships that are available on FishBase from previously published
-research.
+research.Below, the estimated length-weight relationships are
+represented by a colored curve. The observed length-weight data is
+displayed.
 
-    #mass weight graph
+![](PosteriorGeneration_files/figure-markdown_strict/unnamed-chunk-8-1.png)
 
 See below the structure of the mass data.
 
     ## # A tibble: 6 × 3
     ##    post species mass.avg
     ##   <int> <chr>      <dbl>
-    ## 1     1 1        124.   
-    ## 2     1 2        -15.0  
-    ## 3     1 3        -65.4  
-    ## 4     1 4        854.   
-    ## 5     1 5         -0.846
-    ## 6     1 6         11.0
+    ## 1     1 1          4.37 
+    ## 2     1 2          2.08 
+    ## 3     1 3          2.32 
+    ## 4     1 4          5.87 
+    ## 5     1 5          0.466
+    ## 6     1 6          1.29
 
 Comparing the masses of fishes bewteen the two periods. Data from the
 posterior for both the late and the early period is loaded in here.
@@ -106,44 +108,29 @@ See below for the snippit of the abundance data.
     ## # Groups:   post, species [2]
     ##    post species  year tot_abund
     ##   <dbl> <chr>   <dbl>     <dbl>
-    ## 1     1 1           1      5.26
-    ## 2     1 1           2      5.26
-    ## 3     1 1           3      5.29
-    ## 4     1 2           1    192.  
-    ## 5     1 2           2    192.  
-    ## 6     1 2           3    191.
+    ## 1     1 1           1      5.23
+    ## 2     1 1           2      5.23
+    ## 3     1 1           3      5.22
+    ## 4     1 2           1     54.8 
+    ## 5     1 2           2     54.8 
+    ## 6     1 2           3     54.9
 
 See below for a comparison between the estimated total abundance for
 both periods.
-
-    ## Joining with `by = join_by(group)`
-
 ![](PosteriorGeneration_files/figure-markdown_strict/unnamed-chunk-12-1.png)
 
     ## # A tibble: 6 × 4
-    ##    post species   mu_1   mu_2
-    ##   <int> <chr>    <dbl>  <dbl>
-    ## 1     1 1        2.28  -3.25 
-    ## 2     1 2        0.636 -0.153
-    ## 3     1 3       -0.459 -0.613
-    ## 4     1 4       -0.573  0.605
-    ## 5     1 5        0.313 -0.997
-    ## 6     1 6        0.752  0.716
+    ##    post species    mu_1    mu_2
+    ##   <int> <chr>     <dbl>   <dbl>
+    ## 1     1 1        1.25   -1.92  
+    ## 2     1 2        0.271   0.0365
+    ## 3     1 3       -0.554  -0.155 
+    ## 4     1 4       -0.562   0.621 
+    ## 5     1 5       -0.0347 -0.953 
+    ## 6     1 6        0.339   0.242
 
 Finally, all the previous steps are combined. When applicable
 (i.e. where abundances are estimated across multiple years) the
 estimates are summarized by mean.
 
 See below for the structure of the final posterior data frame is.
-
-    ## # A tibble: 6 × 10
-    ## # Groups:   post [1]
-    ##    post species Sigma_1_1 Sigma_2_1 Sigma_1_2 Sigma_2_2 mass.avg tot_abund
-    ##   <dbl> <chr>       <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl>
-    ## 1     1 1           0.478   -0.417    -0.417      1.88   124.         5.27
-    ## 2     1 10          1.77     0.0294    0.0294     0.664  217.        92.3 
-    ## 3     1 2           1.10    -0.236    -0.236      0.206  -15.0      191.  
-    ## 4     1 3           0.147   -0.0368   -0.0368     1.45   -65.4      401.  
-    ## 5     1 4           0.312    0.168     0.168      0.287  854.        17.6 
-    ## 6     1 5           1.26    -0.462    -0.462      0.592   -0.846     26.4 
-    ## # ℹ 2 more variables: mu_1 <dbl>, mu_2 <dbl>

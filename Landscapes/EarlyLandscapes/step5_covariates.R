@@ -16,6 +16,6 @@ covariate_hab = (shoreline_length %>% filter(Water == "LML"))$Habitat %>%
 save(file = "Data/EarlyData/habs_cov.RData", covariate_hab)
 
 n_sites = length(covariate_hab)
-
+n_species = length(species.early)
 z_covariate <- sample(c(0, 1), n_species * n_years * n_sites, replace = TRUE)
 save(file = "Data/EarlyData/z_covariate.RData", z_covariate)

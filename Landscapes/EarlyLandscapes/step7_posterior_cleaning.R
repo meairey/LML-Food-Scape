@@ -3,23 +3,26 @@ library(easypackages)
 libraries("snow","plotrix", "SIBER","ellipse","mixtools",
           "mvtnorm","plot3D","scatterplot3d","scales","viridis","ggplot2",
           "gridExtra", "MASS","plotly", "knitr","tidyverse", "mvtnorm")
-setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/foodweb-landscapes")
+setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape/")
 
 ## Load in data -----------------
 
 
 # Source--------------
 # For functions
-source("Working scripts/functions/bef_functions.R")
+source("Data/Models/functions.R")
+source("Landscapes/EarlyLandscapes/step1_LML_source.R")
 
 n.posts = 20
-
+n_species = 10
+n_years = year_max - year_min
+n_sites = 32
 ## Posterior data frame --------------------
 ## Combining chains 
 
 load("Data/EarlyData/EarlyJagsOutput.RData")
 
-chains <- as.mcmc.list(jags_output) ## set chains
+chains <- as.mcmc.list(jags_output.early) ## set chains
 chains_combined <- gtable_combine(chains) ## combine chains
 
 
@@ -27,10 +30,11 @@ chains_combined <- gtable_combine(chains) ## combine chains
 
 
 # Define names for the 
-names = (data.frame(colnames = colnames(jags_output[[1]]))  %>%
+names = (data.frame(colnames = colnames(jags_output.early[[1]]))  %>%
            mutate(colnames = str_replace_all(colnames, "\\[", "_"), 
                   colnames = str_replace_all(colnames, "\\]", ""),
                   colnames = str_replace_all(colnames,",", "_")))$colnames
+
 
 chain_dat = chains_combined %>%
   as.matrix() %>%
@@ -66,6 +70,19 @@ mass.dat = chain_dat %>%
   separate(metric, into = c("metric1","metric", "species"), sep = "_") %>%
   select(-metric1, -metric)
 
+# Figure for looking at the mass data
+mass.dat %>%
+  rename("group" = "species") %>% 
+  mutate(group = as.numeric(group)) %>%
+  left_join(legend, by = c(group = "group")) %>%
+  ggplot(aes(x = species, y = exp(mass.avg)))  +
+  geom_boxplot() +
+  theme_minimal() + 
+  scale_y_log10() +
+  ylab("Avg. Mass (g)") +
+  xlab("Species") +
+  labs(col = "Species")
+
 # Clean abund estimates -- this does it year by year
 abund.dat =  chain_dat %>%
   as.data.frame() %>%
@@ -91,11 +108,11 @@ abund.dat =  chain_dat %>%
 abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
   left_join(legend, by = c(species = "group")) %>%
-  group_by(species, species.early, species.late, year) %>%
+  group_by(species,  species.early, year) %>%
   summarize(tot_abund = mean(tot_abund)) %>%
   ggplot(aes(x = as.numeric(year), y = tot_abund, col = as.factor(species.early))) +
   geom_line() +
-  scale_y_log10() +
+  #scale_y_log10() +
   ylab("Total Abundance") +
   xlab("Year Index") +
   labs(col = "Species")

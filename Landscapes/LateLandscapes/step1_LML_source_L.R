@@ -45,8 +45,7 @@ year_min = 2019
 species = species.early
 ## Graphing 
 legend = data.frame(group = c(1:10), 
-                    species.early  = species.early,
-                    species.late = c(species.late))
+                    species = species.early )
 
 
 ## Backtracing -------------

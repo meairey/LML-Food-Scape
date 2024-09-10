@@ -46,7 +46,7 @@ load("Data/PreData/pre_effortdata.RData")
 load("Data/PreData/Pre_arraydata.RData")
 
 # Number of sites, years, and species
-n_sites <- dim(species_cpue.data)[2] -2
+n_sites <- dim(effort)[1] 
 n_years <- dim(effort)[2]
 n_species <- dim(array_data)[3]
 
