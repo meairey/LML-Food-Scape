@@ -3,7 +3,7 @@
 ## Ellip function
 
 xax =1;yax=1
-spp = 1; post_n =1; community =1
+spp = 9; post_n =1; community_n =2
 ellipfunc = function( xax,yax,spp,post_n, community_n){
   
   dat.ellipfunc = posterior %>%
@@ -51,23 +51,29 @@ filter_ellip.data = function(x,spp, community){
     
     if(z == 1){
       ellip.1 = ellip
-    }else{
+    } else if (z == 2){
       ellip.2 = ellip
-    }
+    } else {
+      ellip.3 = ellip
+    } 
     
     
   }
   
   
   
-  ellip.full = rbind(ellip.1, ellip.2)
+  ellip.full = rbind(ellip.1, ellip.2, ellip.3)
     return(ellip.full)
 }
 
+xy_length = 10
 
+post_draws = 1
+spp = 10
+community_N = 3
 ## Fitting ellipses
 ## I think this will be done best by looping through species?
-ellip.data = function(xy_length, post_draws, spp, community){
+ellip.data = function(xy_length, post_draws, spp, community_N){
   
   ## Define pop density and body size of species 
   
@@ -88,11 +94,11 @@ ellip.data = function(xy_length, post_draws, spp, community){
   
   
   df.ellip = data.frame(
-    spp = rep(rep(1:spp, each = length(x.p)^2*n.posts), 2),
-    post = rep(rep(rep(1:n.posts, each =length(x.p)^2),spp),  2), 
-    xax = rep(rep(rep(rep(x.p, length(x.p)),n.posts),spp),  2),
-    yax = rep(rep(rep(rep(y.p,each = length(x.p)),n.posts),spp),  2),
-    community = rep(1:community, each = (length(x.p)^2)*spp*n.posts)
+    spp = rep(rep(1:spp, each = length(x.p)^2*n.posts), community_N),
+    post = rep(rep(rep(1:n.posts, each =length(x.p)^2),spp),  community_N), 
+    xax = rep(rep(rep(rep(x.p, length(x.p)),n.posts),spp),  community_N),
+    yax = rep(rep(rep(rep(y.p,each = length(x.p)),n.posts),spp),  community_N),
+    community = rep(1:community_N, each = (length(x.p)^2)*spp*n.posts)
     )
   
   

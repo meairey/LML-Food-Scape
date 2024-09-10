@@ -5,22 +5,37 @@ source("Data/Models/functions.R")
 
 load("Data/posterior_early.csv")
 load("Data/posterior_late.csv")
+load("Data/posterior_pre.csv")
 ## Legend
-species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
-legend = data.frame(group = c(1:10), 
-                    species  = species.late)
+species= c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
+species.pre = c("BB", "CC","CS","PS","SMB","SS","WS")
+legend = data.frame(group = as.character(c(1:10)), 
+                    species  = species, 
+                    species.pre = c(species.pre, rep("NA", 3)))
 
 ## Comparison of posterior parameter distributions
+posterior.pre = posterior.pre %>%
+  rename("group" = "species") %>% 
+  left_join(legend) %>%
+  mutate(community = 1) %>%
+  mutate(species = species.pre) %>%
+  select(-species.pre)
+posterior.early = posterior.early %>%
+  rename("group" = "species") %>% 
+  left_join(legend) %>%
+  mutate(community = 2) %>%
+  select(-species.pre)
+posterior.late = posterior.late %>%
+  rename("group" = "species") %>% 
+  left_join(legend) %>%
+  mutate(community = 3) %>%
+  select(-species.pre)
 
-posterior.early$community = 1
-posterior.late$community = 2
-
-posterior = rbind(posterior.early, posterior.late)
+posterior = rbind(posterior.pre, posterior.early, posterior.late)
 
 posterior %>% 
-  mutate(group = as.numeric(species)) %>%
-  select(-species) %>%
-  left_join(legend) %>%
+  mutate(group = (species)) %>%
+
   ggplot(aes(x = as.factor(community), y = tot_abund)) + 
   geom_boxplot() +
   scale_y_log10() +
@@ -28,13 +43,13 @@ posterior %>%
   xlab("Period") +
   ylab("Total Abundance") +
   theme_minimal(base_size = 12) +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
 ##
 
 posterior %>% 
-  mutate(group = as.numeric(species)) %>%
-  select(-species) %>%
+  mutate(group =species) %>%
+ 
   left_join(legend) %>%
   ggplot(aes(x = as.factor(community), y = mass.avg)) + 
   geom_boxplot() +
@@ -43,7 +58,7 @@ posterior %>%
   xlab("Period") +
   ylab("Average Mass (g)") +
   theme_minimal(base_size = 12) +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
 n_species = 10
 n.posts = 20
@@ -54,31 +69,41 @@ n.posts = 20
 cord_min = -7; cord_max = 7
 workers = 5
 # Resolution
-xy_length = 100
+xy_length = 50
 
 
 ### Mean posterior heatmap for visualization ------
 
 ## New type of heat map with averages from posterior
-#posterior = posterior.early
-#posterior.save = posterior
-posterior = posterior %>% 
+
+posterior = rbind(posterior.pre, posterior.early, posterior.late) %>% 
   group_by(community, species) %>%
   summarize(Sigma_1_1 = mean(Sigma_1_1), 
             Sigma_2_1 = mean(Sigma_2_1), 
             Sigma_1_2 = mean(Sigma_1_2),
             Sigma_2_2 = mean(Sigma_2_2),
-            length.avg = mean(mass.avg), 
+            mass.avg = mean(mass.avg), 
             tot_abund = mean(tot_abund), 
             mu_C = mean(mu_1),
-            mu_N = mean(mu_2)) %>%
-  mutate(post = 1) %>%
-  select(community, post, species, Sigma_1_1, Sigma_2_1, Sigma_1_2, Sigma_2_2, length.avg, tot_abund, mu_C, mu_N) 
+            mu_N = mean(mu_2))  %>%
+  select(community, species, Sigma_1_1, Sigma_2_1, Sigma_1_2, Sigma_2_2, mass.avg, tot_abund, mu_C, mu_N) %>%
+  ungroup() %>%
+  arrange(species) %>%
+  mutate(group = as.numeric(as.factor(species))) %>%
+  complete(group, community) %>%
+  select(-species) %>%
+  rename("species" = "group") %>%
+  mutate(post = 1)
+  
+
+
+
+posterior %>% print(n = 100)
 
 
 
 ## ellip dataframe for the mean landscape (visualization only)
-ellip.mean = ellip.data(100, 1, length(unique(posterior$species)), length(unique(posterior$community)))
+ellip.mean = ellip.data(xy_length, 1, length(unique(posterior$species)), length(unique(posterior$community)))
 # Cluster to create heights
 clo = makeCluster(workers) # Create workers
 clusterEvalQ(clo, c(library(mvtnorm), library(SIBER), library(dplyr))) # Set up packages on the cluster
@@ -92,22 +117,26 @@ ellip.mean$string = parRapply(clo,ellip.mean, # run the ellipfun across the coor
 stopCluster(clo) ## stop workers/cluster
 
 
+ellip.mean %>% filter(spp == 9, community == 2)
+
 # Filter the data frame string
 ellip.mean.filtered = ellip.mean %>% 
-  filter_ellip.data(., 10, 2) 
+  na.omit()
+  filter_ellip.data(., 10, 3) 
 
 
 # Facet wrap heat maps to see individual ellipses
 ellip.mean.filtered %>% 
+  mutate(spp = as.character(spp)) %>%
   left_join(legend,by = c("spp" = "group")) %>% 
-  ggplot(aes(x= xax, y = yax, col =species)) +
-  geom_path() + 
-  facet_wrap(~community) 
+  ggplot(aes(x= xax, y = yax, col =as.factor(community))) +
+  geom_point() + 
+  facet_wrap(~species) 
 
 ## Filtered heatmap with landscape for all species
 ellip.mean.filtered %>%
-  left_join(back.trace) %>%
-  mutate(xax = xax*sd_C + mean_C, yax = yax*sd_N + mean_N) %>%
+  #left_join(back.trace) %>%
+  #mutate(xax = xax*sd_C + mean_C, yax = yax*sd_N + mean_N) %>%
   group_by(community, xax, yax) %>%
   summarize(vol = sum(string)) %>%
   ungroup() %>%
