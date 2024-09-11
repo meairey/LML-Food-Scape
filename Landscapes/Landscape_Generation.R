@@ -122,8 +122,8 @@ ellip.mean %>% filter(spp == 4, community == 1)
 ellip.mean.filtered = ellip.mean %>% 
   na.omit() %>%
   filter_ellip.data(., 10, 3) 
-
-
+save(file = "Data/MeanEllipses.RData", ellip.mean.filtered)
+load(file = "Data/MeanEllipses.RData")
 # Facet wrap heat maps to see individual ellipses
 ellip.mean.filtered %>% 
   mutate(spp = as.character(spp)) %>%
@@ -131,6 +131,9 @@ ellip.mean.filtered %>%
   ggplot(aes(x= xax, y = yax, col =as.factor(community))) +
   geom_jitter(alpha = .15) + 
   facet_wrap(~species) 
+
+
+
 
 ## Filtered heatmap with landscape for all species
 ellip.mean.filtered %>%
@@ -149,7 +152,7 @@ ellip.mean.filtered %>%
   ylab("d15N") + 
   facet_wrap(~community)
 
-save(file = "Data/MeanEllipses.RData", ellip.mean.filtered)
+
 
 
 ## Trying out backtracing
@@ -202,6 +205,8 @@ filtered_data= filter_ellip.data(ellip, n_species,3)
 ## Save .RData files
 save(file = "Data/unfiltered_ellipses.RData", ellip)
 save(file = "Data/filtered_ellipses.RData", filtered_data)
+load("Data/filtered_ellipses.RData")
+
 
 ellip.filtered = filtered_data %>%
   mutate(spp = as.character(spp)) %>%
@@ -248,6 +253,9 @@ total_vols %>%
   ylab("Total Volume") +
   xlab("Community")
   theme(legend.position = "none")
+  
+
+
 
 
 
