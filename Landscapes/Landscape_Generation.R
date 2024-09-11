@@ -49,7 +49,6 @@ posterior %>%
 
 posterior %>% 
   mutate(group =species) %>%
- 
   left_join(legend) %>%
   ggplot(aes(x = as.factor(community), y = mass.avg)) + 
   geom_boxplot() +
@@ -116,7 +115,7 @@ ellip.mean$string = parRapply(clo,ellip.mean, # run the ellipfun across the coor
                                                     community_n = x[5]))
 stopCluster(clo) ## stop workers/cluster
 
-
+## 
 ellip.mean %>% filter(spp == 4, community == 1)
 
 # Filter the data frame string
@@ -196,13 +195,14 @@ stopCluster(clo) # Stop workers
 
 ## Filtering the ellip data
 
-filtered_data= filter_ellip.data(ellip, n_species,2)
+filtered_data= filter_ellip.data(ellip, n_species,3)
 
 ## Save .RData files
 save(file = "Data/unfiltered_ellipses.RData", ellip)
 save(file = "Data/filtered_ellipses.RData", filtered_data)
 
 ellip.filtered = filtered_data %>%
+  mutate(spp = as.character(spp)) %>%
   left_join(legend, by = c("spp" = "group")) %>%
   rename("code" = "species")
 
@@ -218,15 +218,18 @@ total_vols = ellip.filtered %>%
 
 ## Total volume of each species individually
 total_vols %>%
-  ggplot(aes(x = code, y = total_vol, col = community %>% as.factor())) +
+  as.data.frame() %>%
+  complete(code, post, community) %>%
+  replace_na(list(total_vol = 0)) %>%
+  ggplot(aes(x = code, y = total_vol +1, col = community %>% as.factor())) +
   geom_boxplot(outlier.shape = NA) +
   ylab("Total Volume") +
   xlab("Species") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_y_log10() +
   theme_minimal(base_size = 14) +
-  labs(col = "Period") + 
-  scale_color_discrete(labels = c("1" = "Early", "2" = "Late"))
+  labs(col = "Period") +
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late"))
 
 
 # Total volume of the entire community
@@ -239,8 +242,9 @@ total_vols %>%
   ggplot(aes(x = community %>% as.factor(), y = total_vol, col = as.factor(community))) +
   geom_boxplot() +
   theme_minimal(base_size = 14) +
-  scale_x_discrete("Period",labels = c("1" = "Early", "2" = "Late")) +
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
   ylab("Total Volume") +
+  xlab("Community")
   theme(legend.position = "none")
 
 
@@ -253,9 +257,9 @@ total_vols %>%
 axis_slices = ellip.filtered %>% 
   group_by(post, xax, yax, community) %>%
   summarize(total_volume = sum(string)) %>%
-  left_join(back.trace) %>% 
-  mutate(xax = xax * sd_C + mean_C, 
-         yax = yax * sd_N + mean_N) %>%
+  #left_join(back.trace) %>% 
+ # mutate(xax = xax * sd_C + mean_C, 
+  #       yax = yax * sd_N + mean_N) %>%
   group_by(post,community) %>%
   slice_max(total_volume) %>%
   select(post, xax, yax, community) %>% 
@@ -270,10 +274,11 @@ axis_slices %>%
   ggplot(aes(x = as.factor(community), y = Values, col = as.factor(community))) + 
   geom_boxplot()+ 
   ylab("Axis value") + 
-  facet_wrap(~ Type, scales = "free") + 
-  scale_x_discrete("Period", labels = c("1" = "Early", "2" = "Late")) +
+  facet_wrap(~ Type, scales = "free")  +
+  labs(col = "Period") +
+  scale_x_discrete("Community", labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
   theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") 
 
 
 
@@ -288,9 +293,9 @@ axis_slices %>%
 z.mod = ellip.filtered %>% 
   group_by(post, xax, yax, community) %>%
   summarize(total_volume = sum(string)) %>%
-  left_join(back.trace) %>% ## Back transforming the axes
-  mutate(xax = xax * sd_C + mean_C, 
-         yax = yax * sd_N + mean_N) %>%
+ # left_join(back.trace) %>% ## Back transforming the axes
+ # mutate(xax = xax * sd_C + mean_C, 
+    #     yax = yax * sd_N + mean_N) %>%
   ungroup() %>%
   select(total_volume, xax, yax, post, community) 
 
@@ -335,10 +340,10 @@ for(i in 1:length(unique(z.mod$community))){
   dist_list[[i]] = dist_list1
 }
 
-dist_matrix = data.frame(value = c(unlist(dist_list[[1]]), unlist(dist_list[[2]]))) %>% 
-  mutate(metric = rep(c("mean", "sd"), n.posts*2),
-         post = rep(rep(1:n.posts, each = 2), 2), 
-         community= rep(c(1,2), each = n.posts * 2)) 
+dist_matrix = data.frame(value = c(unlist(dist_list[[1]]), unlist(dist_list[[2]]), unlist(dist_list[[3]]))) %>% 
+  mutate(metric = rep(c("mean", "sd"), n.posts*3),
+         post = rep(rep(1:n.posts, each = 2), 3), 
+         community= rep(c(1,2, 3), each = n.posts * 3)) 
 
 dist_matrix %>% 
   ggplot(aes(x = as.factor(community), y = value, col = as.factor(community))) + 
@@ -346,8 +351,9 @@ dist_matrix %>%
   facet_wrap(~metric) +
   theme_minimal(base_size = 14) + 
   theme(legend.position = "none") +
-  ylab("Value") + xlab("Period") +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late"))
+  ylab("Value") + xlab("Period")  +
+  labs(col = "Period") +
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late"))
 
 ## Distance between next highest peak? ----------------------------
 
