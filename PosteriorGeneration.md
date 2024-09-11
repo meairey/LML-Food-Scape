@@ -129,8 +129,33 @@ both periods.
     ## 5     1 5       -0.0347 -0.953 
     ## 6     1 6        0.339   0.242
 
+For this analysis, the mean and sigma of each community’s isotopic web
+is centered around zero with a SD of 1. Because of this, the webs appear
+in an transformed space. This is to assist in making comparisons across
+communities so that the variation within isotopic landscapes of each
+system don’t largely influence the webs. Below, you can see a
+visualization of the mean centroids and ellipse shape for each species
+during each period. Note - that the Pre and Early communities use the
+same isotopic data. However, several species (i.e. lake trout, central
+mudminnow, and rainbow smelt) are not observed during that period, so
+they are excluded from that isotopic web.
+
+![](PosteriorGeneration_files/figure-markdown_strict/unnamed-chunk-14-1.png)
+
 Finally, all the previous steps are combined. When applicable
 (i.e. where abundances are estimated across multiple years) the
 estimates are summarized by mean.
 
 See below for the structure of the final posterior data frame is.
+
+    ## # A tibble: 6 × 10
+    ## # Groups:   post [1]
+    ##    post species Sigma_1_1 Sigma_2_1 Sigma_1_2 Sigma_2_2 mass.avg tot_abund
+    ##   <dbl> <chr>       <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl>
+    ## 1     1 1           1.36    -0.301    -0.301      0.741    4.37       5.23
+    ## 2     1 10          3.23     0.700     0.700      1.04     3.80     321.  
+    ## 3     1 2           0.659   -0.0269   -0.0269     0.137    2.08      54.8 
+    ## 4     1 3           0.163   -0.140    -0.140      0.637    2.32     700.  
+    ## 5     1 4           0.341    0.187     0.187      0.321    5.87      17.3 
+    ## 6     1 5           0.885   -0.0689   -0.0689     0.406    0.466     55.6 
+    ## # ℹ 2 more variables: mu_1 <dbl>, mu_2 <dbl>

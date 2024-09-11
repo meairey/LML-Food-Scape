@@ -149,6 +149,8 @@ ellip.mean.filtered %>%
   ylab("d15N") + 
   facet_wrap(~community)
 
+save(file = "Data/MeanEllipses.RData", ellip.mean.filtered)
+
 
 ## Trying out backtracing
 

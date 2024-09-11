@@ -212,6 +212,8 @@ posterior %>%
   theme_minimal(base_size = 12) +
   scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
+
+
 ```
 
 See below for the snippit of the abundance data.
@@ -278,6 +280,25 @@ head(mu.dat)
 
 
 
+For this analysis, the mean and sigma of each community's isotopic web is centered around zero with a SD of 1. Because of this, the webs appear in an transformed space. This is to assist in making comparisons across communities so that the variation within isotopic landscapes of each system don't largely influence the webs. Below, you can see a visualization of the mean centroids and ellipse shape for each species during each period. Note - that the Pre and Early communities use the same isotopic data. However, several species (i.e. lake trout, central mudminnow, and rainbow smelt) are not observed during that period, so they are excluded from that isotopic web.
+
+```{r, echo = F, messages = FALSE, warning = FALSE}
+
+load("Data/MeanEllipses.RData")
+ellip.mean.filtered %>% 
+  mutate(spp = as.character(spp)) %>%
+  left_join(legend,by = c("spp" = "group")) %>% 
+  mutate(community =as.character(community)) %>%
+  #mutate(community = case_when(community == 1 ~ "Pre", community == 2 ~ "Early", community == 3 ~ "Post")) %>%
+  ggplot(aes(x= xax, y = yax, col =as.factor(species))) +
+  theme_minimal(base_size = 14) +
+  stat_ellipse(lwd = 1) + 
+  facet_wrap(~community, labeller = labeller(community = c("1" = "Pre", "2" = "Early", "3" = "Late"))) +
+  labs(col = "Species")
+
+
+```
+
 
 Finally, all the previous steps are combined. When applicable (i.e. where abundances are estimated across multiple years) the estimates are summarized by mean.
 
@@ -296,9 +317,15 @@ posterior.late = left_join(sig.dat, mass.dat) %>%
 
 
 ```
-```{r, echo = FALSE, warning = FALSE, message=FALSE}
 
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+head(posterior.late)
 ```
+
+
+
+
 
 
 
