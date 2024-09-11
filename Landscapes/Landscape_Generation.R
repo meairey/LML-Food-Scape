@@ -3,15 +3,25 @@ library(raster)
 ## Source and Functions
 source("Data/Models/functions.R")
 
-load("Data/posterior_early.csv")
-load("Data/posterior_late.csv")
-load("Data/posterior_pre.csv")
+## script setup
+n_species = 10
+n.posts = 20
+cord_min = -7; cord_max = 7
+# Resolution
+xy_length = 50
+
 ## Legend
 species= c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 species.pre = c("BB", "CC","CS","PS","SMB","SS","WS")
 legend = data.frame(group = as.character(c(1:10)), 
                     species  = species, 
                     species.pre = c(species.pre, rep("NA", 3)))
+#---------------------------------------------------------------------------
+
+
+load("Data/posterior_early.csv")
+load("Data/posterior_late.csv")
+load("Data/posterior_pre.csv")
 
 ## Comparison of posterior parameter distributions
 posterior.pre = posterior.pre %>%
@@ -59,16 +69,13 @@ posterior %>%
   theme_minimal(base_size = 12) +
   scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
-n_species = 10
-n.posts = 20
+
 # Ellipse generation ----------
 
 ## Coord limits
 
-cord_min = -7; cord_max = 7
+
 workers = 5
-# Resolution
-xy_length = 50
 
 
 ### Mean posterior heatmap for visualization ------
@@ -160,9 +167,9 @@ ellip.mean.filtered %>%
 
 
 
-## Full landscape --------------------------------------
+# Full landscape --------------------------------------
 
-# Ellip coordinates ------------
+## Ellip coordinates ------------
 ## Redefine posterior because we had to overwrite it for the past chunk. The only other solution I can think of here is creating a second function that does the average visualization
 posterior = rbind(posterior.pre, posterior.early, posterior.late) %>%
   
@@ -205,6 +212,8 @@ filtered_data= filter_ellip.data(ellip, n_species,3)
 ## Save .RData files
 save(file = "Data/unfiltered_ellipses.RData", ellip)
 save(file = "Data/filtered_ellipses.RData", filtered_data)
+
+## Load full landscape ----------------
 load("Data/filtered_ellipses.RData")
 
 
@@ -251,8 +260,8 @@ total_vols %>%
   theme_minimal(base_size = 14) +
   scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
   ylab("Total Volume") +
-  xlab("Community")
-  theme(legend.position = "none")
+  xlab("Community") +
+  theme(legend.position = "none") 
   
 
 
@@ -353,7 +362,9 @@ for(i in 1:length(unique(z.mod$community))){
 dist_matrix = data.frame(value = c(unlist(dist_list[[1]]), unlist(dist_list[[2]]), unlist(dist_list[[3]]))) %>% 
   mutate(metric = rep(c("mean", "sd"), n.posts*3),
          post = rep(rep(1:n.posts, each = 2), 3), 
-         community= rep(c(1,2, 3), each = n.posts * 3)) 
+         community= rep(c(1,2, 3), each = (n.posts*2 )))
+
+## Distance between all points in the landscape
 
 dist_matrix %>% 
   ggplot(aes(x = as.factor(community), y = value, col = as.factor(community))) + 
@@ -366,13 +377,66 @@ dist_matrix %>%
   scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late"))
 
 ## Distance between next highest peak? ----------------------------
+# I dont think you want to transform these values back into isotopically meaningful ones... it would be misleading if the variation isn't standardized...
+
+## Demonstration of what it is doing
+
+
+
+## Next highest point peak ----------------
+
+z.mod %>% 
+  group_by(community, post) %>%
+  arrange(post, -total_volume) %>%
+  mutate(dist = sqrt((xax - lag(xax))^2 + (yax - lag(yax))^2)) %>%
+  select(dist,everything()) %>%
+  summarize(mean = mean(dist, na.rm = T), sd = sd(dist, na.rm = T)) %>%
+  pivot_longer(mean:sd, names_to = "metric", values_to = "values") %>%
+  ggplot(aes(x = as.factor(community), y = values, col = as.factor(community))) + 
+  geom_boxplot() +
+  theme_minimal(base_size = 14) + 
+  theme(legend.position = "none") +
+  ylab("Distance to next highest peak") + xlab("Period") +
+  scale_x_discrete(labels = c("1" = "Pre", "2" = "Early", "3" = "Late")) +
+  facet_wrap(~metric, scales = "free")
+
+
+dist.graph.dat = z.mod %>% 
+  
+  group_by(community, post) %>%
+  arrange(post, -total_volume) %>%
+  mutate(dist = sqrt((xax - lag(xax))^2 + (yax - lag(yax))^2)) %>%
+  select(dist,everything()) %>%
+  filter(community == 1, post == 1) %>%
+  ungroup() %>%
+  rename("string" = "total_volume")
+
+
+ellip.filtered %>% filter(post == 1, community == 1)  %>%
+  #left_join(back.trace)  %>%
+  # mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  #       yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
+  group_by(community, post, xax, yax) %>%
+  summarize(sum = sum(string)) %>%
+  ungroup() %>%
+  ggplot(aes(x = xax, y = yax)) + 
+  geom_tile(aes(fill = sum), alpha = .8) + 
+  geom_point(data = dist.graph.dat[1:100,], mapping = aes(x = xax, y = yax)) + 
+  geom_path(data = dist.graph.dat[1:100,], mapping = aes(x = xax, y = yax, col =string )) +
+  theme_minimal(base_size = 14) +
+  scale_color_viridis_b() +
+  theme(legend.position = "none") +
+  ylab("d15N") + xlab("d13C")
+
+
+## Next highest species peak ---------------
 
 ellip.filtered %>% 
   group_by(post, spp, community) %>%
   slice_max(string) %>%
   #left_join(backtrace)  %>%
- # mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
-        # yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
+  # mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  # yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
   ungroup() %>% 
   group_by(community, post) %>%
   arrange(post, -string) %>%
@@ -384,49 +448,42 @@ ellip.filtered %>%
   geom_boxplot() +
   theme_minimal(base_size = 14) + 
   theme(legend.position = "none") +
-  ylab("Value") + xlab("Period") +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) +
+  ylab("Distance to next highest peak") + xlab("Period") +
+  scale_x_discrete(labels = c("1" = "Pre", "2" = "Early", "3" = "Late")) +
   facet_wrap(~metric, scales = "free")
-
-
-## Demonstration of what it is doing
 
 
 dist.graph.dat = ellip.filtered %>% 
   group_by(post, spp, community) %>%
   slice_max(string) %>%
-  left_join(back.trace)  %>%
-  mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
-         yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
+  #left_join(back.trace)  %>%
+  #mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  #       yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
   ungroup() %>% 
   group_by(community, post) %>%
   arrange(post, -string) %>%
   mutate(dist = sqrt((xax - lag(xax))^2 + (yax - lag(yax))^2)) %>%
   select(dist,everything()) %>%
-  filter(community == 2, post == 1) %>%
-  ungroup()
+  filter(community == 2, post == 3) %>%
+  ungroup() %>%
+  mutate(index = c(1:10))
 
-
-
-ellip.filtered %>% filter(post == 1, community == 2)  %>%
-  left_join(back.trace)  %>%
-  mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
-         yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
+ellip.filtered %>% filter(post == 3, community == 2)  %>%
+  #left_join(back.trace)  %>%
+  # mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  #       yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
   group_by(community, post, xax, yax) %>%
   summarize(sum = sum(string)) %>%
   ungroup() %>%
   ggplot(aes(x = xax, y = yax)) + 
   geom_tile(aes(fill = sum), alpha = .8) + 
-  geom_point(data = dist.graph.dat, mapping = aes(x = xax, y = yax)) + 
-  geom_path(data = dist.graph.dat, mapping = aes(x = xax, y = yax, col =string )) +
+  geom_point(data = dist.graph.dat[1:100,], mapping = aes(x = xax, y = yax)) + 
+  geom_path(data = dist.graph.dat[1:100,], mapping = aes(x = xax, y = yax, col =-index ), size = 1) +
   theme_minimal(base_size = 14) +
   scale_color_viridis_b() +
   theme(legend.position = "none") +
-  ylab("d15N") + xlab("d13C")
-
-
-
-
+  ylab("d15N") + xlab("d13C") +
+  scale_fill_gradient(high = "white", low = "black")
 
 
 ## Standard deviation of community -------------------------
@@ -466,7 +523,7 @@ ellip.filtered %>%
 
 
 
-cell_size = (abs(cord_min) + abs(cord_max)) / 100
+cell_size = (abs(cord_min) + abs(cord_max)) / xy_length
 
 backtrace = back.trace %>% 
   mutate(cell_size = (abs(cord_min) + abs(cord_max)) / 100) %>%
@@ -486,8 +543,10 @@ rug1 = list()
 
 for(i in 1:length(unique(z.mod$community))){
   # Define cell dimensions
-  cell_height <- backtrace$cell.size.N[i]
-  cell_width = backtrace$cell_size.C[i] # Example height
+  #cell_height <- backtrace$cell.size.N[i]
+  #cell_width = backtrace$cell_size.C[i] # Example height
+  cell_height = cell_size
+  cell_width = cell_size
   planar_area <- cell_height * cell_width
   for(h in 1:length(unique(z.mod$post))){
     
@@ -527,5 +586,5 @@ rugosity %>%
   theme_minimal(base_size = 14) + 
   theme(legend.position = "none") +
   ylab("Rugosity") + xlab("Period") +
-  scale_x_discrete(labels = c("1" = "Early", "2" = "Late")) 
+  scale_x_discrete(labels = c("1" = "Pre", "2" = "Early", "3" = "Late")) 
 
