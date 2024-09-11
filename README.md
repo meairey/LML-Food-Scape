@@ -25,7 +25,7 @@ mac](https://sourceforge.net/projects/mcmc-jags/files/JAGS/4.x/Mac%20OS%20X/)
 
 <div style="text-align: center;">
 
-<img src="README_files/figure-markdown_strict/landscape-1.png" style="display: block; margin: auto;" />
+![](README_files/figure-markdown_strict/landscape-1.png)
 
 Through this we can calculate the total volume of each species in the
 landscape (as seen below) or examine other landscape metrics (ex.
@@ -34,4 +34,4 @@ each timepoint.
 
 <div style="text-align: center;">
 
-<img src="README_files/figure-markdown_strict/volume-1.png" style="display: block; margin: auto;" />
+![](README_files/figure-markdown_strict/volume-1.png)
