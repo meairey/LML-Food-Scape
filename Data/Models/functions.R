@@ -53,24 +53,27 @@ filter_ellip.data = function(x,spp, community){
       ellip.1 = ellip
     } else if (z == 2){
       ellip.2 = ellip
-    } else {
+    } else if (z == 3){
       ellip.3 = ellip
-    } 
+    } else if (z == 4){
+      ellip.4 = ellip 
+    } else if (z == 5){
+      ellip.5 = ellip
+    } else if (z == 6){
+      ellip.6 = ellip
+    }
     
     
   }
   
   
   
-  ellip.full = rbind(ellip.1, ellip.2, ellip.3)
+  ellip.full = rbind(ellip.1, ellip.2, ellip.3, ellip.4, ellip.5, ellip.6)
     return(ellip.full)
 }
 
-xy_length = 10
 
-post_draws = 1
-spp = 10
-community_N = 3
+
 ## Fitting ellipses
 ## I think this will be done best by looping through species?
 ellip.data = function(xy_length, post_draws, spp, community_N){

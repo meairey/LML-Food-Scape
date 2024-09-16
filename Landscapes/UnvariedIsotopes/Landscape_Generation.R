@@ -19,6 +19,7 @@ legend = data.frame(group = as.character(c(1:10)),
 #---------------------------------------------------------------------------
 
 
+
 load("Data/posterior_early.csv")
 load("Data/posterior_late.csv")
 load("Data/posterior_pre.csv")
