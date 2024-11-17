@@ -68,7 +68,7 @@ filter_ellip.data = function(x,spp, community){
   
   
   
-  ellip.full = rbind(ellip.1, ellip.2, ellip.3, ellip.4, ellip.5, ellip.6)
+  ellip.full = rbind(ellip.1, ellip.2, ellip.3)
     return(ellip.full)
 }
 

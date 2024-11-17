@@ -1,0 +1,41 @@
+model {
+
+  for(i in 1:sites) {
+    
+    # Binomial model
+    N[i] ~ dpois(lambda[i])
+
+    # Log-linear model for abundance with habitat-specific intercept
+    log(lambda[i]) = beta0[hab[i]] + beta1[hab[i]]*wood[i]
+
+    # Observation model
+    for(j in 1:year) {
+        logit(p[i,j]) = alpha0[j] + alpha1[j]*ice_off[j] 
+      for(k in 1:replicates) {
+        C[i, k, j] ~ dbin(p[i,j] * site_proportion[i, k], N[i])
+        
+      }
+    }
+  }
+
+  ## Priors
+
+  # Prior for beta0, defined for each habitat type - for abundances
+  for(k in 1:num_hab) {
+    beta0[k] ~ dunif(-10, 10) ## Prior for abundance intercept - which gets modified by habitat
+    beta1[k] ~ dunif(-10,10) ## Prior for abundance slope which gets modified by presence of wood
+  }
+
+  # Prior for alpha0 and alpha1 for each replicate/time - for detection
+for(k in 1:year){
+   alpha0[k] ~  dunif(-10, 10)
+   alpha1[k] ~ dunif(-10, 10)
+}
+
+
+
+
+  # Derived Variable 
+  Ntotal = sum(N)
+
+}

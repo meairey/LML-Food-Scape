@@ -1,0 +1,102 @@
+model {
+
+for(s in 1:species){
+  for(i in 1:sites) {
+    
+    # Binomial model
+    N[i,s] ~ dpois(lambda[i,s])
+
+    # Log-linear model for abundance with habitat-specific intercept
+    log(lambda[i,s]) = beta0[hab[i],s] + beta1[hab[i],s]*wood[i]
+
+    # Observation model
+    for(j in 1:year) {
+        logit(p[i,j,s]) = alpha0[j,s] + alpha1[j,s]*ice_off[j] 
+      for(k in 1:replicates) {
+        C[i, k, j, s] ~ dbin(p[i,j,s] * site_proportion[i, k], N[i,s])
+        
+      }
+    }
+  }
+
+  ## Priors
+
+  # Prior for beta0, defined for each habitat type - for abundances
+  for(k in 1:num_hab) {
+    beta0[k,s] ~ dunif(-10, 10) ## Prior for abundance intercept - which gets modified by habitat
+    beta1[k,s] ~ dunif(-10,10) ## Prior for abundance slope which gets modified by presence of wood
+  }
+
+  # Prior for alpha0 and alpha1 for each replicate/time - for detection
+for(k in 1:year){
+   alpha0[k,s] ~  dunif(-10, 10)
+   alpha1[k,s] ~ dunif(-10, 10)
+ }
+
+
+
+
+
+ }
+
+
+## Priors for mass of taxa
+
+tau_mass ~ dgamma(1, 1) # Prior for precision of average mass
+tau_mass_obs ~ dgamma(1, 1) # Prior for precision of observed mass data
+
+
+## Average mass of each species per lake -----------------------------
+
+# Prior for average mass of each species
+for (i in 1:species) {
+  avg_mass[i] ~ dnorm(0, tau_mass)  # Prior for average mass
+}
+
+
+# Likelihood for observed mass data (assuming mass_observed_lake is your observed mass data at the lake level)
+for (i in 1:species) {
+  for (k in 1:n_obs_mass[i]) {
+    mass_observed_lake[i, k] ~ dlnorm(avg_mass[i], tau_mass_obs) 
+    # Likelihood for observed mass data at the lake level
+  }
+}
+
+
+
+
+
+## Isotope model ------------------------------------------
+# ----------------------------------
+# define the priors
+# ----------------------------------
+
+# this loop defines the priors for the means
+for (s in 1:species) {
+  for (i in 1:n.iso) {
+    mu[s,i] ~ dnorm(0, tau.mu)
+  }
+}
+
+# prior for the precision matrix
+for (s in 1:species) {
+  tau[s,1:n.iso, 1:n.iso] ~ dwish(R[1:n.iso, 1:n.iso], k)
+}
+
+# convert to covariance matrix
+for (s in 1:species) {
+  Sigma2[s,1:n.iso, 1:n.iso] <- inverse(tau[s,1:n.iso, 1:n.iso]) 
+}
+
+# ----------------------------------------------------
+# specify the likelihood of the observed data
+# ----------------------------------------------------
+
+for (s in 1:species) {
+  for (i in 1:n.obs) {                             
+    Y[s,i, 1:2] ~ dmnorm(mu[s,1:n.iso], tau[s,1:n.iso, 1:n.iso])
+  }
+}
+
+
+}
