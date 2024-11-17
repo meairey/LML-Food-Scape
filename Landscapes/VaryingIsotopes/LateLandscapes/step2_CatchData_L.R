@@ -1,7 +1,7 @@
 library(tidyverse)
 library(rjags)
 setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape/")
-source("Landscapes/LateLandscapes/step1_LML_source_L.R")
+source("Landscapes/VaryingIsotopes/LateLandscapes/step1_LML_source_L.R")
 
 ## I'm a little worried that the multiple observation issue is going to catch up again here. But, for now, I'm simplifying this by just taking average catch and average effort for each site in each year. Not putting in each separately.
 
@@ -45,7 +45,7 @@ effort = step_a %>%
   mutate_all(~replace(., is.na(.), epsilon)) %>% # Make all NA's a very small value
   t()
 # Save object
-save(effort, file = "Data/LateData/late_effortdata.RData")
+save(effort, file = "Data/VaryingIsotopesData/LateData/late_effortdata.RData")
 
 ### Species data matrix 
 # Get the list of unique species
@@ -90,6 +90,65 @@ for (i in seq_along(species)) {
   array_data[,,i] <- species_matrices[[i]]
 }
 
-save(file = "Data/LateData/late_arraydata.RData", array_data)
+save(file = "Data/VaryingIsotopesData/LateData/late_arraydata.RData", array_data)
+
+
+### New model data setup --------------------------------------------
+
+
+## Load in the data that says which sites to pair
+rep_group = read.csv("Data/rep_groups.csv") ## Round values for modifying p
+
+## Calculate what proportion of a shoreline is sampled during each replicate
+shoreline_length = rep_group %>%
+  select(shoreline_length, rep_group_simple) %>%
+  na.omit() %>% group_by(rep_group_simple) %>%
+  mutate(count = c(1:length(shoreline_length))) %>% ## index for pivoting wider
+  pivot_wider(names_from = count, values_from = shoreline_length) %>% ## Pivot it so reps are columns
+  ungroup() %>%
+  select(-rep_group_simple) %>% ## remove columns not needed in RJAGS
+  mutate(total_length = rowSums(.)) %>% ## Total length of shoreline for calculating proportion
+  mutate(`1` = `1` / total_length,  ## Calculate the proportions for each replicate for each site
+         `2` = `2` / total_length)
+
+## Abundance Array -----------------------------------
+## An intermediate step for creating the array
+df = step_a %>% 
+  left_join(rep_group, by = c("SITE" = "site")) %>%
+  mutate(mean_catch = round(mean_catch, digits = 0)) %>%
+  select(YEAR, SPECIES, rep_group_simple,  mean_catch) %>%
+  na.omit()%>%
+  
+  group_by(YEAR,SPECIES, rep_group_simple) %>%
+  mutate(rep_num = c(1:length(mean_catch))) %>%
+  ungroup() 
+
+# Get unique values for each dimension
+years <- sort(unique(df$YEAR))
+species <- unique(df$SPECIES)
+rep_groups <- sort(unique(df$rep_group_simple))
+rep_nums <- sort(unique(df$rep_num))
+
+# Create an empty 4D array
+mean_catch_array <- array(
+  NA, 
+  dim = c(length(rep_groups), length(rep_nums), length(years), length(species)),
+  dimnames = list(rep_group = rep_groups, rep_num = rep_nums, YEAR = years, SPECIES = species)
+)
+
+# Fill the array
+for (i in seq_len(nrow(df))) {
+  row <- df[i, ]
+  mean_catch_array[
+    as.character(row$rep_group_simple),
+    as.character(row$rep_num),
+    as.character(row$YEAR),
+    as.character(row$SPECIES)
+  ] <- row$mean_catch
+}
+
+save(mean_catch_array, file = "Data/VaryingIsotopesData/LateData/mean_catch_array.RData")
+
+
 
 

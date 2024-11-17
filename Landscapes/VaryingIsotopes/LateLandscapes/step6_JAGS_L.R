@@ -7,7 +7,7 @@ library(rjags)
 #zero.inflated.model = read_file("Working scripts/Models/zero_inflated.txt")
 
 zero.inflated.model = read_file("Data/Models/zero_inflated.txt")
-
+N_Mix_Model = read_file("Data/Models/NMix_Full.txt")
 
 # options for running jags
 parms <- list(); parms$n.iter=2*10^4; parms$n.burnin=1*10^3; 
@@ -43,17 +43,36 @@ load("Data/VaryingIsotopesData/LateData/late_effortdata.RData")
 
 
 #### Load in the Catch Data --------------
-load("Data/VaryingIsotopesData/LateData/Late_arraydata.RData")
+load("Data/VaryingIsotopesData/LateData/Late_arraydata.RData") ## Old model
+load("Data/VaryingIsotopesData/LateData/mean_catch_array.RData") ## New model
 
 # Number of sites, years, and species
-n_sites <- dim(effort)[1]
-n_years <- dim(effort)[2]
-n_species <- dim(array_data)[3]
+## Old model catch variables
+#n_sites <- dim(effort)[1]
+#n_years <- dim(effort)[2]
+#n_species <- dim(array_data)[3]
+
+## New model catch variables
+
+Cmax = apply(mean_catch_array, c(1,4), max,na.rm=T) ## Set up innits
+
+
+## Set up variables for JAGS data
+sites =  dim(mean_catch_array[,,1,1])[1]
+year = (mean_catch_array[,,,1] %>% dim())[3]
+replicates = (mean_catch_array[,,,1] %>% dim())[2]
+species = (mean_catch_array %>% dim())[4]
 
 #### Load in covariates -------------------
-load("Data/VaryingIsotopesData/LateData/habs_cov.RData")
-load("Data/VaryingIsotopesData/LateData/covariate_temp.RData")
-load("Data/VaryingIsotopesData/LateData/z_covariate.RData")
+load("Data/VaryingIsotopesData/LateData/habs_cov.RData") ## Old model
+load("Data/VaryingIsotopesData/LateData/covariate_temp.RData") ## Old Model
+load("Data/VaryingIsotopesData/LateData/z_covariate.RData") ## Old Model
+
+## New model covariates
+load("Data/VaryingIsotopesData/LateData/ice_off.RData") # Ice off new model
+load("Data/VaryingIsotopesData/LateData/hab_cov.RData") # Habitat new model
+load("Data/VaryingIsotopesData/LateData/shoreline_length.RData") # Length new model
+
 # Jags Data
 alpha <- 1
 # Jags Data
@@ -63,8 +82,11 @@ beta <- 1
 
 # Specify parameters to monitor ------------------------------------------------
 
-jags_parameters = c("avg_mass","N", "mu", "Sigma2")
+jags_parameters = c("avg_mass", "mu", "Sigma2", "N")
 priors=list(); priors$R=1*diag(2); priors$k=2; priors$tau.mu=1.0E-3 ## Prior setup
+
+
+### RJAGS
 
 
 
@@ -73,6 +95,39 @@ priors=list(); priors$R=1*diag(2); priors$k=2; priors$tau.mu=1.0E-3 ## Prior set
 priors=list(); priors$R=1*diag(2); priors$k=2; priors$tau.mu=1.0E-3 
 
 
+
+data_list = list(
+  
+  ## Values for the loops
+  n_sites = sites,
+  n_years = year,
+  replicates = replicates, 
+  n_species = 10,
+  
+  ## Covariates
+  num_hab = 2, 
+  wood = as.numeric(hab$mean_w), 
+  ice_off = ice_off,
+  site_proportion = shoreline_length[,1:2] ,
+  
+  ## Catch
+  C = mean_catch_array, 
+  hab = as.numeric(hab$sub),
+  
+  # Mass data
+  mass_observed_lake = observed_lengths.late,
+  n_obs_mass = n_obs_mass.late,
+  
+  # Isotope data
+  "n.obs" = n.obs,
+  "n.iso" = n.iso,
+  "Y" = arr,
+  
+  # Priors
+  "R" = priors$R,
+  "k" = priors$k, 
+  "tau.mu" = priors$tau.mu
+)
 
 # Data for the JAGS model
 data_list <- list(
@@ -107,7 +162,7 @@ data_list <- list(
 
 ## Innits
 #With size and abundance
-
+n_species = species
 inits <- replicate(parms$n.chains,
                    list(
                      mu =array(data = rnorm(n_species * n.iso),
@@ -122,14 +177,20 @@ inits <- replicate(parms$n.chains,
                      alpha0 = rep(0, n_species), 
                      alpha1 = rep(0, n_species), 
                      sigma_u = runif(1,0,1),
-                     sigma_v = runif(1,0,1)),
+                     sigma_v = runif(1,0,1),
+                     N = Cmax),
                    simplify = FALSE)
+
+inits = function() list(N = Cmax)
+
 
 ## Size data -------------------------------------------------
 # Specify parameters to monitor ------------------------------------------------
-jags_parameters = c("avg_mass","N", "mu", "Sigma2")
+jags_parameters = c("avg_mass","Ntotal", "mu", "Sigma2")
 # Compile and run the model ----------------------------------------------------
-jags_model <- jags.model(textConnection(zero.inflated.model), 
+
+
+jags_model <- jags.model(textConnection(N_Mix_Model), 
                          data = data_list, 
                          n.chains = parms$n.chains)
 jags_output.late <- coda.samples(jags_model, 

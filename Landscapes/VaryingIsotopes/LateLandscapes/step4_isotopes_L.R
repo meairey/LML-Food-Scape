@@ -23,7 +23,8 @@ data.late = read.csv("Data/SI_MEASUREMENT.csv") %>%
          iso_1 = scale(as.numeric(iso_1)),
          iso_2 = scale(as.numeric(iso_2))) %>%
   na.omit() %>%
-  select(community, group, iso_1, iso_2)
+  select(community, group, iso_1, iso_2) %>%
+  filter(group %in% c("CC", "CS","LT","MM","PS","RS","SMB","SS","WS"))
 
 
 
@@ -50,7 +51,7 @@ data.early = read.csv("Data/JML.Data.Master.csv") %>%
   mutate(iso_1 = scale(as.numeric(iso_1)),
          iso_2 = scale(as.numeric(iso_2))) %>%
   na.omit() %>% 
-  filter(group %in% c("BB", "LT","SS", "WS", "RS"))
+  filter(group %in% c("BB"))
 
 
 
@@ -58,6 +59,10 @@ data.early = read.csv("Data/JML.Data.Master.csv") %>%
 ##  Combining data ------------------
 
 data = rbind(data.early, data.late)
+
+
+data %>% ggplot(aes(x = iso_1, iso_2, col = group)) + 
+  geom_point() + stat_ellipse()
 
 df = data %>% 
   arrange(group) %>%
@@ -70,6 +75,7 @@ df = data %>%
 
 
 n_species = length(unique(df$species))
+n.iso = 2
 # Create an empty 3D array
 arr <- array(NA, dim = c(n_species, max(df$num), n.iso))
 
@@ -84,7 +90,7 @@ for (i in 1:n_species) {
 }
 
 
-save( file = "Data/LateData/IsotopeArray_late.RData", arr)
+save(file = "Data/VaryingIsotopesData/LateData/IsotopeArray_late.RData", arr)
 
 
 ## backtrace late

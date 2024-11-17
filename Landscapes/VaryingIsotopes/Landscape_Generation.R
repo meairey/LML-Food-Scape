@@ -1,5 +1,8 @@
+library(raster) ## This package messes with the select function in library dplyr
+
+library(snow)
 library(tidyverse)
-library(raster)
+library(viridis)
 ## Source and Functions
 source("Data/Models/functions.R")
 
@@ -20,9 +23,9 @@ legend = data.frame(group = as.character(c(1:10)),
 
 
 
-load("Data/posterior_early.csv")
-load("Data/posterior_late.csv")
-load("Data/posterior_pre.csv")
+load("Data/VaryingIsotopesData/posterior_early.csv")
+load("Data/VaryingIsotopesData/posterior_late.csv")
+load("Data/VaryingIsotopesData/posterior_pre.csv")
 
 ## Comparison of posterior parameter distributions
 posterior.pre = posterior.pre %>%
@@ -164,7 +167,6 @@ ellip.mean.filtered %>%
 
 
 ## Trying out backtracing
-
 
 
 
@@ -526,6 +528,8 @@ ellip.filtered %>%
 
 cell_size = (abs(cord_min) + abs(cord_max)) / xy_length
 
+
+## Need to load this in
 backtrace = back.trace %>% 
   mutate(cell_size = (abs(cord_min) + abs(cord_max)) / 100) %>%
   mutate(cell_size.C = cell_size*sd_C, 
@@ -537,6 +541,7 @@ backtrace = back.trace %>%
 
 
 # Calculate the planar area for each cell
+
 
 
 rug = list()
