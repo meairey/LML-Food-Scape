@@ -13,7 +13,7 @@ library(rjags)
 source("Data/Models/functions.R")
 source("Landscapes/VaryingIsotopes/PreLandscapes/step1_LML_source_pre.R")
 
-n.posts = 100
+n.posts = 3000
 ## Posterior data frame --------------------
 ## Combining chains 
 
@@ -21,6 +21,7 @@ load("Data/UnvariedIsotopeData/PreData/PreJagsOutput.RData")
 
 chains.pre <- as.mcmc.list(jags_output.pre.un) ## set chains
 chains_combined <- gtable_combine(chains.pre) ## combine chains
+
 
 
 
@@ -66,8 +67,7 @@ mass.dat = chain_dat %>%
   separate(metric, into = c("metric1","metric", "species"), sep = "_") %>%
   select(-metric1, -metric)
 
-
-# Figure for looking at the abundance data
+# Figure for looking at the mass data
 mass.dat %>%
   rename("group" = "species") %>% 
   mutate(group = as.numeric(group)) %>%
@@ -80,9 +80,6 @@ mass.dat %>%
   xlab("Species") +
   labs(col = "Species")
 
-n_species = length(legend$species)
-n_years = 1
-n_sites = 31
 
 # Clean abund estimates -- this does it year by year
 abund.dat =  chain_dat %>%
@@ -96,24 +93,21 @@ abund.dat =  chain_dat %>%
   pivot_longer(2:length(.[1,]),
                names_to = "metric", 
                values_to = "value") %>%
-  separate(metric, into = c("metric", "site", "year", "species")) %>%
+  separate(metric, into = c("metric", "site",  "species")) %>%
   mutate(species = as.numeric(species),
          site = as.numeric(site),
-         post = as.numeric(post), 
-         year = as.numeric(year)) %>%
-  group_by(post, species, year) %>%
+         post = as.numeric(post)) %>%
+  group_by(post, species) %>%
   summarize(tot_abund = sum(value)) %>%
   mutate(species = as.character(species))
 
-
 # Figure for looking at the abundance data
-abund.dat %>%
-  rename("group" = "species") %>% 
-  mutate(group = as.numeric(group)) %>%
-  left_join(legend, by = c(group = "group")) %>%
-  ggplot(aes(x = species, y = tot_abund))  +
+abund.dat %>% 
+  mutate(species = as.numeric(species)) %>%
+  rename(group = species) %>%
+  left_join(legend) %>%
+  ggplot(aes(x = species, y = tot_abund)) +
   geom_boxplot() +
-  
   scale_y_log10() +
   ylab("Total Abundance") +
   xlab("Year Index") +
@@ -123,9 +117,8 @@ abund.dat %>%
 ## Table for looking at the abundance data
 abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
-  left_join(legend, by = c(species = "group")) %>%
-  group_by(species, year) %>%
-  summarize(tot_abund = mean(tot_abund)) %>%
+  rename(group = species) %>%
+  left_join(legend)  %>%
   group_by(species) %>%
   summarize(tot_abund = mean(tot_abund))
 
@@ -146,13 +139,10 @@ mu.dat = chain_dat %>%
 
 
 ## Final posterior frame
-posterior.pre.un = left_join(sig.dat, mass.dat) %>% 
+posterior.pre.unvaried = left_join(sig.dat, mass.dat) %>% 
   left_join(abund.dat) %>%
   left_join(mu.dat) %>%
-  group_by(post, species) %>%
-  select(year, everything()) %>%
-  summarize(across(2:9, mean, na.rm = TRUE)) %>%
-  ungroup() 
+  group_by(post, species) 
 
-save(file = "Data/UnvariedIsotopeData/posterior_pre.RData", posterior.pre.un)
+save(file = "Data/UnvariedIsotopeData/posterior_pre.RData", posterior.pre.unvaried)
 

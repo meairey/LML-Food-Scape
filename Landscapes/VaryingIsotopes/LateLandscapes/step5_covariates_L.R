@@ -39,21 +39,21 @@ ice_off[24,1] = 2022
 
 
 ice_off =as.numeric((ice_off %>% filter(YEAR %in% c(year_min:year_max)))$avg.day.ice)
-save(ice_off, file = "Data/VaryingIsotopesData/LateData/ice_off.RData")
+save(ice_off, file = "Data/VaryingIsotopesData/LateData/ice_off_late.RData")
 
 
 
 ## Habitat variables
 rep_group = read.csv("Data/rep_groups.csv") ## Round values for modifying p
 hab = rep_group %>%
-  select(rep_group_simple, hab) %>%
+  select(rep_group, hab) %>%
   na.omit() %>%
   mutate(sub = substr(hab, 1, 1),
          wood = substr(hab, 2, 2)) %>%
   mutate(wood = as.numeric(as.factor(wood)),
          sub  = as.numeric(as.factor(sub))) %>%
-  select(rep_group_simple, sub, wood) %>%
-  group_by(rep_group_simple, sub) %>%
+  select(rep_group, sub, wood) %>%
+  group_by(rep_group, sub) %>%
   summarize(mean_w = mean(wood)) %>%
   unique()
 save(hab, file = "Data/VaryingIsotopesData/LateData/hab_cov.RData")
@@ -63,14 +63,13 @@ save(hab, file = "Data/VaryingIsotopesData/LateData/hab_cov.RData")
 ## Habitat length 
 ## Calculate what proportion of a shoreline is sampled during each replicate
 shoreline_length = rep_group %>%
-  select(shoreline_length, rep_group_simple) %>%
-  na.omit() %>% group_by(rep_group_simple) %>%
+  select(shoreline_length, rep_group) %>%
+  na.omit() %>% group_by(rep_group) %>%
   mutate(count = c(1:length(shoreline_length))) %>% ## index for pivoting wider
   pivot_wider(names_from = count, values_from = shoreline_length) %>% ## Pivot it so reps are columns
   ungroup() %>%
-  select(-rep_group_simple) %>% ## remove columns not needed in RJAGS
-  mutate(total_length = rowSums(.)) %>% ## Total length of shoreline for calculating proportion
+  select(-rep_group) %>% ## remove columns not needed in RJAGS
+  mutate(total_length = rowSums(., na.rm = T)) %>% ## Total length of shoreline for calculating proportion
   mutate(`1` = `1` / total_length,  ## Calculate the proportions for each replicate for each site
          `2` = `2` / total_length)
-
 save(shoreline_length, file = "Data/VaryingIsotopesData/LateData/shoreline_length.RData")

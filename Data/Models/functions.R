@@ -24,6 +24,8 @@ ellipfunc = function( xax,yax,spp,post_n, community_n){
 }
 
 ## Multiple CSV filter
+
+
 filter_ellip.data = function(x,spp, community){
   
   ## Define pop density and body size of species 

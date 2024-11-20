@@ -113,7 +113,9 @@ backtrace.late = read.csv("Data/SI_MEASUREMENT.csv") %>%
   ungroup() %>%
   na.omit()  %>%
   as.data.frame() %>%
-  mutate(community = 2) %>%
+  mutate(community = 3) %>%
   group_by(community) %>%
   summarize(mean_C = mean((iso_1)), sd_C = sd(iso_1),
             mean_N = mean((iso_2)), sd_N = sd(iso_2)) 
+
+save(backtrace.late, file = "Data/VaryingIsotopesData/LateData/BacktraceTrace.RData")

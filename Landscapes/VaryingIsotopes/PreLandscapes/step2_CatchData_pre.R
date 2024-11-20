@@ -2,9 +2,90 @@ library(rjags)
 library(tidyverse)
 
 setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape/")
-source("Landscapes/PreLandscapes/step1_LML_source_pre.R")
+source("Landscapes/VaryingIsotopes/PreLandscapes/step1_LML_source_pre.R")
 
 ## I'm a little worried that the multiple observation issue is going to catch up again here. But, for now, I'm simplifying this by just taking average catch and average effort for each site in each year. Not putting in each separately.
+
+
+
+
+
+
+### New Model ------------------------------------------
+
+
+step_a = LML.data %>%
+  filter(YEAR >= year_min & YEAR != 2002 & YEAR <= year_max, ## here it details the min and max
+         SITE != "BEF.LML.NA") %>%
+  separate(SPECIES, into = c("SPECIES", "AGE")) %>%
+  select(YSAMP_N, DAY_N, YEAR, SEASON, WATER, SITE, SPECIES,
+         FISH_N, WEIGHT, LENGTH,  EFFORT) %>%
+  group_by(WATER, DAY_N, YEAR, SITE, SPECIES, EFFORT) %>%
+  count() %>% ## Abundance per year, site, species
+  mutate(CPUE_seconds = n / EFFORT) %>%
+  ungroup() %>%
+  #mutate(CPUE_seconds = normalize(n/EFFORT)) %>%
+  complete(., nesting(WATER, YEAR, DAY_N, SITE, EFFORT), SPECIES) %>%
+  replace_na(list(CPUE_seconds = 0, n = 0)) %>% 
+  #group_by(YEAR, SPECIES, SITE) %>%
+  #summarize(mean_catch = mean(n), mean_effort = mean(EFFORT)) %>%
+  ungroup() %>%
+  filter(SPECIES %in% species) %>%
+  rename("mean_catch" = "n")
+
+
+
+## Abundance Array -----------------------------------
+## An intermediate step for creating the array
+df = step_a %>% 
+  #left_join(rep_group, by = c("SITE" = "site")) %>%
+  mutate(mean_catch = round(mean_catch, digits = 0)) %>%
+  select(YEAR, SPECIES, SITE, mean_catch) %>%
+  na.omit() %>%
+  
+  group_by(YEAR,SPECIES, SITE) %>%
+  mutate(rep_num = c(1:length(mean_catch))) %>%
+  ungroup() 
+
+
+# Get unique values for each dimension
+
+species = unique(df$SPECIES)
+#rep_groups <- sort(unique(df$rep_group_simple))
+rep_nums <- sort(unique(df$rep_num))
+sites = sort(unique(df$SITE))
+
+# Create an empty 4D array
+mean_catch_array <- array(
+  NA, 
+  dim = c(length(sites), length(rep_nums),  length(species)),
+  dimnames = list(sites = sites, rep_num = rep_nums,  SPECIES = species)
+)
+
+# Fill the array
+for (i in seq_len(nrow(df))) {
+  row <- df[i, ]
+  mean_catch_array[
+    as.character(row$SITE),
+    as.character(row$rep_num),
+    
+    as.character(row$SPECIES)
+  ] <- row$mean_catch
+}
+
+save(mean_catch_array, file = "Data/VaryingIsotopesData/PreData/mean_catch_array_pre.RData")
+
+
+
+
+
+
+
+
+
+
+
+## Old Model --------------------------------------------------
 
 step_a = LML.data %>%
   filter(YEAR >= year_min & YEAR != 2002 & YEAR <= year_max, ## here it details the min and max
@@ -92,5 +173,9 @@ for (i in seq_along(species)) {
 }
 
 save(file = "Data/PreData/Pre_arraydata.RData", array_data)
+
+
+
+
 
 

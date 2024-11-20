@@ -138,4 +138,4 @@ jags_output.late <- coda.samples(jags_model,
 
 
 
-save(file = "Data/VaryingIsotopesData/LateData/LateJagsOutput.RData", jags_output.late)
+save(file = "Data/UnvariedIsotopeData/LateData/LateJagsOutput.RData", jags_output.late)

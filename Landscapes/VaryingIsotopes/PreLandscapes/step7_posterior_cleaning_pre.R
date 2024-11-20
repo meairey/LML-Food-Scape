@@ -11,9 +11,9 @@ library(rjags)
 # Source--------------
 # For functions
 source("Data/Models/functions.R")
-source("Landscapes/PreLandscapes/step1_LML_source_pre.R")
+source("Landscapes/VaryingIsotopes/PreLandscapes/step1_LML_source_pre.R")
 
-n.posts = 100
+n.posts = 3000
 
 ## Posterior data frame --------------------
 ## Combining chains 
@@ -82,7 +82,6 @@ mass.dat %>%
   labs(col = "Species")
 
 n_species = length(legend$species)
-n_years = 1
 n_sites = 31
 
 # Clean abund estimates -- this does it year by year
@@ -97,12 +96,11 @@ abund.dat =  chain_dat %>%
   pivot_longer(2:length(.[1,]),
                names_to = "metric", 
                values_to = "value") %>%
-  separate(metric, into = c("metric", "site", "year", "species")) %>%
+  separate(metric, into = c("metric", "site","species")) %>%
   mutate(species = as.numeric(species),
          site = as.numeric(site),
-         post = as.numeric(post), 
-         year = as.numeric(year)) %>%
-  group_by(post, species, year) %>%
+         post = as.numeric(post)) %>%
+  group_by(post, species) %>%
   summarize(tot_abund = sum(value)) %>%
   mutate(species = as.character(species))
 
@@ -125,7 +123,7 @@ abund.dat %>%
 abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
   left_join(legend, by = c(species = "group")) %>%
-  group_by(species, year) %>%
+  group_by(species) %>%
   summarize(tot_abund = mean(tot_abund)) %>%
   group_by(species) %>%
   summarize(tot_abund = mean(tot_abund))
@@ -150,10 +148,7 @@ mu.dat = chain_dat %>%
 posterior.pre = left_join(sig.dat, mass.dat) %>% 
   left_join(abund.dat) %>%
   left_join(mu.dat) %>%
-  group_by(post, species) %>%
-  select(year, everything()) %>%
-  summarize(across(2:9, mean, na.rm = TRUE)) %>%
-  ungroup() 
+  group_by(post, species)
 
 save(file = "Data/VaryingIsotopesData/posterior_pre.csv", posterior.pre)
 

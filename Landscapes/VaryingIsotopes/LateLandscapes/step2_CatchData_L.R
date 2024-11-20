@@ -101,13 +101,13 @@ rep_group = read.csv("Data/rep_groups.csv") ## Round values for modifying p
 
 ## Calculate what proportion of a shoreline is sampled during each replicate
 shoreline_length = rep_group %>%
-  select(shoreline_length, rep_group_simple) %>%
-  na.omit() %>% group_by(rep_group_simple) %>%
+  select(shoreline_length, rep_group) %>%
+  na.omit() %>% group_by(rep_group) %>%
   mutate(count = c(1:length(shoreline_length))) %>% ## index for pivoting wider
   pivot_wider(names_from = count, values_from = shoreline_length) %>% ## Pivot it so reps are columns
   ungroup() %>%
-  select(-rep_group_simple) %>% ## remove columns not needed in RJAGS
-  mutate(total_length = rowSums(.)) %>% ## Total length of shoreline for calculating proportion
+  select(-rep_group) %>% ## remove columns not needed in RJAGS
+  mutate(total_length = rowSums(., na.rm = T)) %>% ## Total length of shoreline for calculating proportion
   mutate(`1` = `1` / total_length,  ## Calculate the proportions for each replicate for each site
          `2` = `2` / total_length)
 
@@ -116,17 +116,17 @@ shoreline_length = rep_group %>%
 df = step_a %>% 
   left_join(rep_group, by = c("SITE" = "site")) %>%
   mutate(mean_catch = round(mean_catch, digits = 0)) %>%
-  select(YEAR, SPECIES, rep_group_simple,  mean_catch) %>%
+  select(YEAR, SPECIES, rep_group,  mean_catch) %>%
   na.omit()%>%
   
-  group_by(YEAR,SPECIES, rep_group_simple) %>%
+  group_by(YEAR,SPECIES, rep_group) %>%
   mutate(rep_num = c(1:length(mean_catch))) %>%
   ungroup() 
 
 # Get unique values for each dimension
 years <- sort(unique(df$YEAR))
 species <- unique(df$SPECIES)
-rep_groups <- sort(unique(df$rep_group_simple))
+rep_groups <- sort(unique(df$rep_group))
 rep_nums <- sort(unique(df$rep_num))
 
 # Create an empty 4D array
@@ -140,14 +140,14 @@ mean_catch_array <- array(
 for (i in seq_len(nrow(df))) {
   row <- df[i, ]
   mean_catch_array[
-    as.character(row$rep_group_simple),
+    as.character(row$rep_group),
     as.character(row$rep_num),
     as.character(row$YEAR),
     as.character(row$SPECIES)
   ] <- row$mean_catch
 }
 
-save(mean_catch_array, file = "Data/VaryingIsotopesData/LateData/mean_catch_array.RData")
+save(mean_catch_array, file = "Data/VaryingIsotopesData/LateData/mean_catch_array_late.RData")
 
 
 

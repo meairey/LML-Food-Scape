@@ -23,49 +23,57 @@ legend = data.frame(group = as.character(c(1:10)),
 
 
 
-load("Data/VaryingIsotopesData/posterior_early.csv")
-load("Data/VaryingIsotopesData/posterior_late.csv")
-load("Data/VaryingIsotopesData/posterior_pre.csv")
+load("Data/UnvariedIsotopeData/posterior_early.unvaried.csv")
+load("Data/UnvariedIsotopeData/posterior_late.RData")
+load("Data/UnvariedIsotopeData/posterior_pre.RData")
 
 ## Comparison of posterior parameter distributions
-posterior.pre = posterior.pre %>%
+posterior.pre = posterior.pre.unvaried %>%
   rename("group" = "species") %>% 
-
   left_join(legend) %>%
   mutate(community = 1) %>%
   mutate(species = species.pre) %>%
-  select(-species.pre)
-posterior.early = posterior.early %>%
+  ungroup() %>%
+  select(-species.pre, -group)
+
+
+posterior.early = posterior.early.unvaried %>%
   rename("group" = "species") %>% 
   left_join(legend) %>%
   mutate(community = 2) %>%
-  select(-species.pre)
+  ungroup() %>%
+  select(-species.pre,-group) 
 
-posterior.late = posterior.late %>%
+
+posterior.late = posterior.late.un %>%
   rename("group" = "species") %>% 
   left_join(legend) %>%
   mutate(community = 3) %>%
-  select(-species.pre)
+  ungroup() %>%
+  select(-species.pre, -group)
+
+posterior.late %>% group_by(species) %>%
+  summarize(mean_1 = mean(mu_1), mean_2 = mean(mu_2))
+  
 
 posterior = rbind(posterior.pre, posterior.early, posterior.late)
 
 posterior %>% 
-  mutate(group = (species)) %>%
+ 
 
   ggplot(aes(x = as.factor(community), y = tot_abund)) + 
   geom_boxplot() +
+  scale_y_log10() +
   facet_wrap(~species, scales = "free_y") +
   xlab("Period") +
   ylab("Total Abundance") +
   theme_minimal(base_size = 12) +
-  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
-  scale_y_log10() 
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
 ##
 
 posterior %>% 
-  mutate(group =species) %>%
-  left_join(legend) %>%
+  
   ggplot(aes(x = as.factor(community), y = mass.avg)) + 
   geom_boxplot() +
   #scale_y_log10() +
@@ -86,14 +94,10 @@ workers = 5
 
 ### Mean posterior heatmap for visualization ------
 
-## script setup
-n_species = 10
-n.posts = 3000
-cord_min = -7; cord_max = 7
-# Resolution
-xy_length = 1000
-
 ## New type of heat map with averages from posterior
+
+
+
 
 posterior = rbind(posterior.pre, posterior.early, posterior.late) %>% 
   group_by(community, species) %>%
@@ -113,8 +117,11 @@ posterior = rbind(posterior.pre, posterior.early, posterior.late) %>%
   select(-species) %>%
   rename("species" = "group") %>%
   mutate(post = 1)
-  
 
+posterior_isotopes.summary = posterior %>% filter(community == 3) %>%
+  select(species, post, mu_C, mu_N, Sigma_1_1, Sigma_2_1, Sigma_1_2, Sigma_2_2)
+  
+legend
 
 
 posterior %>% print(n = 100)
@@ -136,23 +143,38 @@ ellip.mean$string = parRapply(clo,ellip.mean, # run the ellipfun across the coor
 stopCluster(clo) ## stop workers/cluster
 
 ## 
-ellip.mean %>% filter(spp == 4, community == 1)
+ellip.mean %>% filter(spp == 10, community == 3)
 
 # Filter the data frame string
 ellip.mean.filtered = ellip.mean %>% 
   na.omit() %>%
   filter_ellip.data(., 10, 3) 
-save(file = "Data/VaryingIsotopesData/MeanEllipses.RData", ellip.mean.filtered)
-load(file = "Data/VaryingIsotopesData/MeanEllipses.RData")
 
 
+
+ellip.mean %>% group_by(community, spp) %>%
+  summarize(total = sum(string)) %>%
+  arrange(community, -total) %>%
+  print(n = 100)
+
+ellip.mean.filtered %>% filter(spp == 10, community == 3)
+
+ellip.mean.filtered.un = ellip.mean.filtered
+save(file = "Data/UnvariedIsotopeData/MeanEllipses.RData", ellip.mean.filtered.un)
+load(file = "Data/UnvariedIsotopeData/MeanEllipses.RData")
 # Facet wrap heat maps to see individual ellipses
+
+
+
 ellip.mean.filtered %>% 
+
   mutate(spp = as.character(spp)) %>%
   left_join(legend,by = c("spp" = "group")) %>% 
   ggplot(aes(x= xax, y = yax, col =as.factor(community))) +
   geom_jitter(alpha = .15) + 
   facet_wrap(~species) 
+
+
 
 
 ## Filtered heatmap with landscape for all species
@@ -162,47 +184,20 @@ ellip.mean.filtered %>%
   group_by(community, xax, yax) %>%
   summarize(vol = sum(string)) %>%
   ungroup() %>%
-  ggplot(aes(x = xax, y = yax, col = vol)) +
-  geom_point(size = 5) +
-
-  scale_color_viridis() +
-  theme_minimal() + 
-  labs(fill = "Z height") +
-  xlab("d13C") +
-  ylab("d15N") + 
-  facet_wrap(~community, labeller = labeller(community = c("1" = "pre", "2"= "early", "3" = "late"))) 
-
-ellip.mean.filtered %>%
-  #left_join(back.trace) %>%
-  #mutate(xax = xax*sd_C + mean_C, yax = yax*sd_N + mean_N) %>%
-  group_by(community,spp, xax, yax) %>%
-  summarize(vol = sum(string)) %>%
-  ungroup() %>%
-  mutate(spp = as.character(spp)) %>%
-  left_join(legend, by = c("spp" = "group")) %>%
-  filter(species== "SMB") %>%
   ggplot(aes(x = xax, y = yax, col = (vol))) +
   geom_point(size = 5) +
-  
+
   scale_color_viridis() +
   theme_minimal() + 
   labs(fill = "Z height") +
   xlab("d13C") +
   ylab("d15N") + 
-  facet_wrap(~community)+
-  xlim(-8,8) +
-  ylim(-8,8)
+  facet_wrap(~community)
 
 
 
-## Trying out backtracing
-## script setup
-n_species = 10
-n.posts = 20
-cord_min = -7; cord_max = 7
-# Resolution
-xy_length = 50
-
+posterior %>%
+  arrange(species)
 
 # Full landscape --------------------------------------
 
@@ -247,11 +242,13 @@ stopCluster(clo) # Stop workers
 filtered_data= filter_ellip.data(ellip, n_species,3)
 
 ## Save .RData files
-save(file = "Data/VaryingIsotopesData/unfiltered_ellipses.RData", ellip)
-save(file = "Data/VaryingIsotopesData/filtered_ellipses.RData", filtered_data)
+ellip.un = ellip
+filtered_data.un = filtered_data
+save(file = "Data/UnvariedIsotopeData/unfiltered_ellipses.RData", ellip.un)
+save(file = "Data/UnvariedIsotopeData/filtered_ellipses.RData", filtered_data.un)
 
 ## Load full landscape ----------------
-load("Data/VaryingIsotopesData/filtered_ellipses.RData")
+load("Data/UnvariedIsotopeData/filtered_ellipses.RData")
 
 
 ellip.filtered = filtered_data %>%
@@ -259,14 +256,7 @@ ellip.filtered = filtered_data %>%
   left_join(legend, by = c("spp" = "group")) %>%
   rename("code" = "species")
 
-## Backtrasforming values for plotting
 
-load("Data/VaryingIsotopesData/EarlyData/backtrace_early.RData")
-load("Data/VaryingIsotopesData/LateData/BacktraceTrace.RData")
-load("Data/VaryingIsotopesData/PreData/backtrace_pre.RData")
-backtrace
-
-back.trace = rbind(backtrace.pre,backtrace.early, backtrace.late)
 
 
 # Volume metrics and boxplot ---------------------------------
@@ -275,25 +265,21 @@ total_vols = ellip.filtered %>%
   group_by(code, post, community) %>%
   summarise(total_vol = sum(string)) 
 
-library(wesanderson)
+
 ## Total volume of each species individually
 total_vols %>%
   as.data.frame() %>%
   complete(code, post, community) %>%
   replace_na(list(total_vol = 0)) %>%
-  ggplot(aes(x = community %>% as.factor(), y = total_vol +1, fill = community %>% as.factor())) +
-  geom_boxplot(outlier.shape = NA, key_glyph = "rect") +
+  ggplot(aes(x = code, y = total_vol +1, col = community %>% as.factor())) +
+  geom_boxplot(outlier.shape = NA) +
   ylab("Total Volume") +
   xlab("Species") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_y_log10() +
   theme_minimal(base_size = 14) +
   labs(col = "Period") +
-  scale_x_discrete("Period",labels = c("1" = "Pre","2" = "Early", "3" = "Late") ) +
-  theme(axis.text.x = element_text(angle = 45),
-        legend.position = "none") +
-  scale_fill_manual("Community", values = wes_palette("Darjeeling1", type = "discrete", n = 3)   ,labels = c("1" = "Pre","2" = "Early", "3" = "Late")) + 
-  facet_wrap(~code, scales = "free_y")
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late"))
 
 
 # Total volume of the entire community
@@ -303,14 +289,13 @@ total_vols %>%
   ungroup() %>%
   group_by(post, community) %>%
   summarize(total_vol = sum(total_vol)) %>%
-  ggplot(aes(x = community %>% as.factor(), y = total_vol, fill = as.factor(community))) +
+  ggplot(aes(x = community %>% as.factor(), y = total_vol, col = as.factor(community))) +
   geom_boxplot() +
   theme_minimal(base_size = 14) +
   scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
   ylab("Total Volume") +
   xlab("Community") +
-  theme(legend.position = "none") +
-  scale_fill_manual("Community", values = wes_palette("Darjeeling1", type = "discrete", n = 3)   ,labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
+  theme(legend.position = "none") 
   
 
 
@@ -325,9 +310,9 @@ total_vols %>%
 axis_slices = ellip.filtered %>% 
   group_by(post, xax, yax, community) %>%
   summarize(total_volume = sum(string)) %>%
-  left_join(back.trace) %>% 
-  mutate(xax = xax * sd_C + mean_C, 
-        yax = yax * sd_N + mean_N) %>%
+  #left_join(back.trace) %>% 
+ # mutate(xax = xax * sd_C + mean_C, 
+  #       yax = yax * sd_N + mean_N) %>%
   group_by(post,community) %>%
   slice_max(total_volume) %>%
   select(post, xax, yax, community) %>% 
@@ -339,16 +324,14 @@ axis_slices = ellip.filtered %>%
 axis_slices %>% 
   mutate(Type = str_replace(Type, "xax", "D13C"),
          Type = str_replace(Type, "yax", "D15N")) %>%
-  ggplot(aes(x = as.factor(community), y = Values, fill = as.factor(community))) + 
+  ggplot(aes(x = as.factor(community), y = Values, col = as.factor(community))) + 
   geom_boxplot()+ 
-  ylab("PPT") + 
+  ylab("Axis value") + 
   facet_wrap(~ Type, scales = "free")  +
   labs(col = "Period") +
   scale_x_discrete("Community", labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
   theme_minimal(base_size = 14) +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank()) +
-  scale_fill_manual( values = wes_palette("Darjeeling1", type = "discrete", n = 3),labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
+  theme(legend.position = "none") 
 
 
 
@@ -360,10 +343,12 @@ axis_slices %>%
 
 
 # set up matrix for filtering within the for loop
-## This wont be backtransformed because I don't want to influence the dist with the natural variation in baseline
 z.mod = ellip.filtered %>% 
   group_by(post, xax, yax, community) %>%
   summarize(total_volume = sum(string)) %>%
+ # left_join(back.trace) %>% ## Back transforming the axes
+ # mutate(xax = xax * sd_C + mean_C, 
+    #     yax = yax * sd_N + mean_N) %>%
   ungroup() %>%
   select(total_volume, xax, yax, post, community) 
 
@@ -413,20 +398,17 @@ dist_matrix = data.frame(value = c(unlist(dist_list[[1]]), unlist(dist_list[[2]]
          post = rep(rep(1:n.posts, each = 2), 3), 
          community= rep(c(1,2, 3), each = (n.posts*2 )))
 
-## Distance between all local maxima in the landscape
+## Distance between all points in the landscape
 
 dist_matrix %>% 
-  ggplot(aes(x = as.factor(community), y = value, fill = as.factor(community))) + 
+  ggplot(aes(x = as.factor(community), y = value, col = as.factor(community))) + 
   geom_boxplot() + 
   facet_wrap(~metric) +
   theme_minimal(base_size = 14) + 
   theme(legend.position = "none") +
-  ylab("Distance between maxima") + xlab("Period")  +
+  ylab("Value") + xlab("Period")  +
   labs(col = "Period") +
-  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
-  scale_fill_manual( values = wes_palette("Darjeeling1", type = "discrete", n = 3),labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
-
-
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late"))
 
 ## Distance between next highest peak? ----------------------------
 # I dont think you want to transform these values back into isotopically meaningful ones... it would be misleading if the variation isn't standardized...
@@ -486,7 +468,9 @@ ellip.filtered %>% filter(post == 1, community == 1)  %>%
 ellip.filtered %>% 
   group_by(post, spp, community) %>%
   slice_max(string) %>%
-
+  #left_join(backtrace)  %>%
+  # mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  # yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
   ungroup() %>% 
   group_by(community, post) %>%
   arrange(post, -string) %>%
@@ -494,21 +478,21 @@ ellip.filtered %>%
   select(dist,everything()) %>%
   summarize(mean = mean(dist, na.rm = T), sd = sd(dist, na.rm = T)) %>%
   pivot_longer(mean:sd, names_to = "metric", values_to = "values") %>%
-  ggplot(aes(x = as.factor(community), y = values, fill = as.factor(community))) + 
+  ggplot(aes(x = as.factor(community), y = values, col = as.factor(community))) + 
   geom_boxplot() +
   theme_minimal(base_size = 14) + 
-  theme(legend.position = "none",
-        axis.title.x = element_blank()) +
+  theme(legend.position = "none") +
   ylab("Distance to next highest peak") + xlab("Period") +
   scale_x_discrete(labels = c("1" = "Pre", "2" = "Early", "3" = "Late")) +
-  facet_wrap(~metric, scales = "free") +
-  scale_fill_manual( values = wes_palette("Darjeeling1", type = "discrete", n = 3),labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
+  facet_wrap(~metric, scales = "free")
 
 
 dist.graph.dat = ellip.filtered %>% 
   group_by(post, spp, community) %>%
   slice_max(string) %>%
-
+  #left_join(back.trace)  %>%
+  #mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  #       yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
   ungroup() %>% 
   group_by(community, post) %>%
   arrange(post, -string) %>%
@@ -519,7 +503,9 @@ dist.graph.dat = ellip.filtered %>%
   mutate(index = c(1:10))
 
 ellip.filtered %>% filter(post == 3, community == 2)  %>%
-
+  #left_join(back.trace)  %>%
+  # mutate(xax = xax * backtrace.early$sd_C + backtrace.early$mean_C,
+  #       yax = yax * backtrace.early$sd_N + backtrace.early$mean_N) %>%
   group_by(community, post, xax, yax) %>%
   summarize(sum = sum(string)) %>%
   ungroup() %>%
@@ -573,12 +559,17 @@ ellip.filtered %>%
 
 cell_size = (abs(cord_min) + abs(cord_max)) / xy_length
 
+#backtrace = back.trace %>% 
+ # mutate(cell_size = (abs(cord_min) + abs(cord_max)) / 100) %>%
+  #mutate(cell_size.C = cell_size*sd_C, 
+   #      cell.size.N = cell_size * sd_N)
+
+
 
 
 
 
 # Calculate the planar area for each cell
-
 
 
 rug = list()
@@ -624,16 +615,10 @@ rugosity = data.frame(values = unlist(rug),
                       community = rep(unique(z.mod$community), each = n.posts))
 
 rugosity %>%
-  ggplot(aes(x = as.factor(community), y = values, fill = as.factor(community))) + 
+  ggplot(aes(x = as.factor(community), y = values, col = as.factor(community))) + 
   geom_boxplot() +
   theme_minimal(base_size = 14) + 
-  theme(legend.position = "none",
-        axis.title.x = element_blank()) +
+  theme(legend.position = "none") +
   ylab("Rugosity") + xlab("Period") +
-  scale_x_discrete(labels = c("1" = "Pre", "2" = "Early", "3" = "Late")) +
-  scale_fill_manual( values = wes_palette("Darjeeling1", type = "discrete", n = 3),labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
-
-
-
-
+  scale_x_discrete(labels = c("1" = "Pre", "2" = "Early", "3" = "Late")) 
 

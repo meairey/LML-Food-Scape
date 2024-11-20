@@ -54,6 +54,29 @@ backtrace.early = read.csv("Data/JML.Data.Master.csv") %>%
   select(Species, C, N) %>% 
   arrange(Species) %>% 
   mutate(spp = as.numeric(as.factor(Species)),
+         community = 2, 
+         C = as.numeric(C),
+         N = as.numeric(N)) %>%
+  select(community, spp, C, N) %>%
+  rename("iso_1" = "C",
+         "iso_2" = "N") %>%
+  group_by(spp) %>%
+  filter(n() > 3) %>%
+  ungroup() %>%
+  na.omit() %>%
+  group_by(community) %>%
+  summarize(mean_C = mean((iso_1)), sd_C = sd(iso_1),
+            mean_N = mean((iso_2)), sd_N = sd(iso_2)) 
+save(backtrace.early, file = "Data/VaryingIsotopesData/EarlyData/backtrace_early.RData")
+
+
+## Pre data because they use the same isotope data
+
+backtrace.pre = read.csv("Data/JML.Data.Master.csv") %>%
+  filter(Group %in% "Fish") %>%
+  select(Species, C, N) %>% 
+  arrange(Species) %>% 
+  mutate(spp = as.numeric(as.factor(Species)),
          community = 1, 
          C = as.numeric(C),
          N = as.numeric(N)) %>%
@@ -67,3 +90,4 @@ backtrace.early = read.csv("Data/JML.Data.Master.csv") %>%
   group_by(community) %>%
   summarize(mean_C = mean((iso_1)), sd_C = sd(iso_1),
             mean_N = mean((iso_2)), sd_N = sd(iso_2)) 
+save(backtrace.early, file = "Data/VaryingIsotopesData/PreData/backtrace_pre.RData")

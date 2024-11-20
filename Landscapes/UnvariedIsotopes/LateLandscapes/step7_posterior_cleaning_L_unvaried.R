@@ -12,16 +12,13 @@ libraries("snow","plotrix", "SIBER","ellipse","mixtools",
 # For functions
 source("Data/Models/functions.R")
 source("Landscapes/VaryingIsotopes/LateLandscapes/step1_LML_source_L.R")
-n.posts = 100
-n_species = 10
-n_years = year_max - year_min
-n_sites = 32
 ## Posterior data frame --------------------
 ## Combining chains 
+n.posts = 3000
+load("Data/UnvariedIsotopeData/LateData/LateJagsOutput.RData")
 
-load("Data/VaryingIsotopesData/LateData/LateJagsOutput.RData")
 
-chains <- as.mcmc.list(jags_output.late.un) ## set chains
+chains <- as.mcmc.list(jags_output.late) ## set chains
 chains_combined <- gtable_combine(chains) ## combine chains
 
 
@@ -29,7 +26,7 @@ chains_combined <- gtable_combine(chains) ## combine chains
 
 
 # Define names for the 
-names = (data.frame(colnames = colnames(jags_output.late.un[[1]]))  %>%
+names = (data.frame(colnames = colnames(jags_output.late[[1]]))  %>%
            mutate(colnames = str_replace_all(colnames, "\\[", "_"), 
                   colnames = str_replace_all(colnames, "\\]", ""),
                   colnames = str_replace_all(colnames,",", "_")))$colnames
@@ -54,6 +51,8 @@ sig.dat = chain_dat %>%
   mutate(metric = str_remove_all(metric, "[0-9]")) %>%
   unite("names", c(metric, sig.order1, sig.order2)) %>% 
   pivot_wider(names_from = names, values_from = sig.value)
+
+
 
 
 ## Clean length estimates
@@ -94,41 +93,39 @@ abund.dat =  chain_dat %>%
   pivot_longer(2:length(.[1,]),
                names_to = "metric", 
                values_to = "value") %>%
-  separate(metric, into = c("metric", "site", "year", "species")) %>%
+  separate(metric, into = c("metric", "site",  "species")) %>%
   mutate(species = as.numeric(species),
          site = as.numeric(site),
-         post = as.numeric(post), 
-         year = as.numeric(year)) %>%
-  group_by(post, species, year) %>%
+         post = as.numeric(post)) %>%
+  group_by(post, species) %>%
   summarize(tot_abund = sum(value)) %>%
   mutate(species = as.character(species))
 
 # Figure for looking at the abundance data
 abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
-  left_join(legend, by = c(species = "group")) %>%
-  group_by(species,  year) %>%
-  summarize(tot_abund = mean(tot_abund)) %>%
-  ggplot(aes(x = as.numeric(year), y = tot_abund, col = as.factor(species))) +
-  geom_line() +
-  scale_y_log10() +
+  rename(group = species) %>%
+  left_join(legend) %>%
+  ggplot(aes(x = species, y = tot_abund)) +
+  geom_boxplot() +
+  
   ylab("Total Abundance") +
   xlab("Year Index") +
-  labs(col = "Species")
+  labs(col = "Species") +
+  scale_y_log10() 
 
 
 ## Table for looking at the abundance data
 abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
-  left_join(legend, by = c(species = "group")) %>%
-  group_by(species, year) %>%
-  summarize(tot_abund = mean(tot_abund)) %>%
+  rename(group = species) %>%
+  left_join(legend)  %>%
   group_by(species) %>%
   summarize(tot_abund = mean(tot_abund))
 
 
 
-# Clean mu estimates
+
 mu.dat = chain_dat %>%
   as.data.frame() %>% 
   select(contains("mu", ignore.case = TRUE)) %>%
@@ -140,15 +137,21 @@ mu.dat = chain_dat %>%
   unite("names", c(metric, isotope)) %>%
   pivot_wider(names_from = names, values_from = mu.value)
 
+mu.dat %>%
+  group_by(species) %>%
+  summarize(mean_1 = mean(mu_1), mean_2 = mean(mu_2))
+
 
 
 ## Final posterior frame
 posterior.late.un = left_join(sig.dat, mass.dat) %>% 
   left_join(abund.dat) %>%
   left_join(mu.dat) %>%
-  group_by(post, species) %>%
-  select(year, everything()) %>%
-  summarize(across(2:9, mean, na.rm = TRUE))
+  group_by(post, species) 
 
-save(file = "Data/UnvariedIsotopeData/posterior_late.RData", posterior.late.un)
+
+
+
+
+save(file = "Data/UnvariedIsotopeData/LateData/posterior_late.RData", posterior.late.un)
 
