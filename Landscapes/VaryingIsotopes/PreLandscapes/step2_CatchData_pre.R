@@ -34,6 +34,15 @@ step_a = LML.data %>%
   rename("mean_catch" = "n")
 
 
+sample %>%
+  filter(YEAR == 2000, MONTH < 7, WATER == "LML", GEAR_CODE == "NAF") %>%
+  ggplot(aes(y = SITE_N, x = DAY_N)) +
+  geom_point() +
+  facet_wrap(~SITE_N, scales = "free_y")
+
+
+
+
 
 ## Abundance Array -----------------------------------
 ## An intermediate step for creating the array
