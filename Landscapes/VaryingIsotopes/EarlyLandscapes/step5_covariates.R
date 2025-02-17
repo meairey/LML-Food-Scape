@@ -42,6 +42,24 @@ hab = rep_group %>%
   summarize(mean_w = mean(wood)) %>%
   unique()
 
+hab =  rep_group %>%
+  select(rep_group, hab) %>%
+  na.omit() %>%
+  mutate(sub = substr(hab, 1, 1),
+         wood = substr(hab, 2, 2)) %>%
+  mutate(wood = as.numeric(as.factor(wood)),
+         sub  = as.numeric(as.factor(sub))) %>%
+  select(rep_group, sub, wood)
+
+hab = rep_group %>%
+  select(rep_group, hab) %>%
+  na.omit() %>%
+  mutate(sub = substr(hab, 1, 1),
+         wood = substr(hab, 2, 2)) %>%
+  mutate(wood = as.numeric(as.factor(wood)),
+         sub  = as.numeric(as.factor(sub))) %>%
+  select(sub, wood)
+
 save(hab, file = "Data/VaryingIsotopesData/EarlyData/hab_cov.RData")
 
 
@@ -58,6 +76,17 @@ shoreline_length = rep_group %>%
   mutate(total_length = rowSums(., na.rm = T)) %>% ## Total length of shoreline for calculating proportion
   mutate(`1` = `1` / total_length,  ## Calculate the proportions for each replicate for each site
          `2` = `2` / total_length)
+
+shoreline_length = rep_group %>% arrange(site) %>%
+  select(shoreline_length)
+
+
+shoreline_length = rep_group %>% arrange(site) %>%
+  select(shoreline_length) %>%
+  mutate(
+    shoreline_std = scale(log(shoreline_length / mean(shoreline_length))),
+    shoreline_length = scale(log(shoreline_length)))
+
 
 save(shoreline_length, file = "Data/VaryingIsotopesData/EarlyData/shoreline_length_early.RData")
 

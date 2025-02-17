@@ -10,6 +10,8 @@ library(rjags)
 
 full_model = read_file("Data/Models/updated_full.txt")
 
+model = read_file("Data/Models/cscu_model2")
+
 # options for running jags
 parms <- list(); parms$n.iter=2*10^4; parms$n.burnin=1*10^3; 
 parms$n.thin=10; parms$n.chains=2  
@@ -55,10 +57,10 @@ Cmax = apply(mean_catch_array, c(1,4), max,na.rm=T) ## Set up innits
 
 
 ## Set up variables for JAGS data
-sites =  dim(mean_catch_array[,,1,1])[1]
-year = (mean_catch_array[,,,1] %>% dim())[3]
-replicates = (mean_catch_array[,,,1] %>% dim())[2]
-species = (mean_catch_array %>% dim())[4]
+sites =  dim(mean_catch_array)[1]
+year = dim(mean_catch_array)[3]
+replicates = dim(mean_catch_array)[2]
+species = dim(mean_catch_array)[4]
 
 #### Load in covariates -------------------
 load("Data/VaryingIsotopesData/EarlyData/ice_off_early.RData") # Ice off new model
@@ -92,11 +94,10 @@ jags_data = list(sites = sites,
                  replicates = replicates, 
                  species = species ,
                  C = mean_catch_array, 
-                 site_proportion = shoreline_length[,1:2] %>% 
-                   mutate(`2` = replace_na(`2`, 1)) ,
-                 hab = as.numeric(hab$sub),
+                 shoreline_length = as.numeric(shoreline_length$shoreline_std),
+                 hab = scale(as.numeric(hab$sub)) %>% as.numeric,
                  num_hab = 2, 
-                 wood = as.numeric(hab$mean_w), 
+                 wood = as.numeric(hab$wood), 
                  ice_off = ice_off,
                  ## mass components
                  mass_observed_lake = observed_lengths.early,
@@ -127,9 +128,9 @@ inits = function() list(N = Cmax,
 
 ## Size data -------------------------------------------------
 # Specify parameters to monitor ------------------------------------------------
-jags_parameters = c("avg_mass","N", "mu", "Sigma2")
+jags_parameters = c("avg_mass","N_total", "mu", "Sigma2")
 # Compile and run the model ----------------------------------------------------
-jags_model <- jags.model(textConnection(full_model), 
+jags_model <- jags.model(textConnection(model), 
                          data = jags_data, 
                          n.chains = parms$n.chains,
                          inits = inits)

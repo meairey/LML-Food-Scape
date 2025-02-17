@@ -1,22 +1,51 @@
+## Checking dataframe
+## Access Database
+data = read.csv("Data/IsotopeComparisons/Clean/SI_MEASUREMENT.csv")
+sample.clean = read.csv("Data/IsotopeComparisons/Clean/SI_SAMPLE.csv")
+da.acc = left_join(data, sample.clean, by = "ISO_YSAMP_N") %>%
+  select(-corrected)
+## Missing samples from JML File
+
+mi.sa = read.csv("Data/IsotopeComparisons/Clean/missing_sample.csv") %>% unique()
+mi.me = read.csv("Data/IsotopeComparisons/Clean/missing_measurement.csv")
+miss.dat = left_join(mi.me, mi.sa, by = "ISO_YSAMP_N") %>% filter(YEAR < 2005)
+
+data = rbind(da.acc, miss.dat)
+
+data %>%
+  filter(GROUP %in% "FISH", WATER == "LML", YEAR < 2005) %>%
+  select(TAXON, D13C, D15N) %>% 
+  group_by(TAXON) %>%
+  filter(n() >= 3) %>%
+  select(TAXON) %>% unique()
+
+## Load in access LML measurement file for other lengths
+
+`%nin%` = Negate(`%in%`)
+
 ### Early isotope values ----------------------------
-data = read.csv("Data/JML.Data.Master.csv") %>%
-  filter(Group %in% "Fish") %>%
-  select(Species, C, N) %>% 
-  group_by(Species) %>%
+data = data %>%
+  filter(GROUP %in% "FISH", WATER == "LML", YEAR < 2005) %>%
+  select(TAXON, D13C, D15N) %>% 
+  group_by(TAXON) %>%
+  na.omit()  %>%
+  filter(TAXON %in% species.early) %>%
   filter(n() >= 3) %>%
   ungroup() %>%
-  arrange(Species) %>% 
-  mutate(group = as.numeric(as.factor(Species)),
+  arrange(TAXON) %>% 
+  mutate(group = as.numeric(as.factor(TAXON)),
          community = 1) %>%
-  select(community, group, C, N) %>%
-  rename("iso_1" = "C",
-         "iso_2" = "N") %>%
+  select(community, group, D13C, D15N) %>%
+  rename("iso_1" = "D13C",
+         "iso_2" = "D15N") %>%
   
   ungroup() %>%
-  na.omit()  %>%
+  
   mutate(iso_1 = scale(as.numeric(iso_1)),
          iso_2 = scale(as.numeric(iso_2))) %>%
   na.omit()
+
+
 
 df= data %>% 
   group_by(group) %>% 
@@ -46,7 +75,7 @@ for (i in 1:n_species) {
 }
 
 # Save the array as an R object (RData file)
-save(arr, file = "Data/EarlyData/IsotopeArray_early.RData")
+save(arr, file = "Data/VaryingIsotopesData/EarlyData/IsotopeArray_early.RData")
 
 
 backtrace.early = read.csv("Data/JML.Data.Master.csv") %>%

@@ -4,7 +4,7 @@ libraries("snow","plotrix", "SIBER","ellipse","mixtools",
           "mvtnorm","plot3D","scatterplot3d","scales","viridis","ggplot2",
           "gridExtra", "MASS","plotly", "knitr","tidyverse", "mvtnorm")
 setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape/")
-
+library(coda)
 ## Load in data -----------------
 
 
@@ -14,7 +14,7 @@ source("Data/Models/functions.R")
 source("Landscapes/VaryingIsotopes/EarlyLandscapes/step1_LML_source.R")
 
 n.posts = 3000
-n_species = 10
+n_species = 8
 n_years = year_max - year_min
 n_sites = 32
 ## Posterior data frame --------------------
@@ -26,6 +26,31 @@ chains <- as.mcmc.list(jags_output.early) ## set chains
 chains_combined <- gtable_combine(chains) ## combine chains
 
 
+
+rhat_values <- gelman.diag(chains, multivariate = FALSE)$psrf[, "Point est."]
+
+rhat_values %>% as.matrix() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "rowname") %>%
+  separate(rowname,  into = c("parameter", "index"), remove = F) %>%
+  #  select(parameter, V1) %>%
+  filter(V1 > 1.1)
+
+chains_combined <- gtable_combine(chains) ## combine chains
+
+chain1 = as.matrix(chains[[1]]) %>% as.data.frame() %>%
+  mutate(chain = 1)
+
+chain2 = as.matrix(chains[[2]]) %>% as.data.frame() %>%
+  mutate(chain = 2)
+
+combined_density = rbind(chain1, chain2) 
+for(i in c(1:n_species)){
+  g = combined_density %>% ggplot(aes(x = combined_density[,i], col = as.factor(chain))) +
+    geom_density(alpha = .05) +
+    xlab(paste("early", i))
+  print(g)
+}
 
 
 
@@ -117,13 +142,16 @@ abund.dat %>%
 
 
 ## Table for looking at the abundance data
-abund.dat %>% 
+abund.sum.early = abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
   rename(group = species) %>%
   left_join(legend)  %>%
   group_by(species) %>%
-  summarize(tot_abund = mean(tot_abund))
+  summarize(tot_abund = mean(tot_abund)) 
 
+save(abund.sum.early, file =  "Data/VaryingIsotopesData/early.abund.RData")
+remove(abund.sum.early)
+load(file =  "Data/VaryingIsotopesData/early.abund.RData")
 
 
 # Clean mu estimates
@@ -146,4 +174,10 @@ posterior.early = left_join(sig.dat, mass.dat) %>%
   left_join(mu.dat) %>%
   group_by(post, species) 
 
+posterior.early %>%
+  group_by(species) %>%
+  summarize(mean_N = mean(mu_1), mean_ab = mean(mass.avg))
+
+
+species.early
 save(file = "Data/VaryingIsotopesData/posterior_early.csv", posterior.early)

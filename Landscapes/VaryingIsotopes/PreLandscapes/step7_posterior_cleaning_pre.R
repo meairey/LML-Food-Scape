@@ -14,7 +14,7 @@ source("Data/Models/functions.R")
 source("Landscapes/VaryingIsotopes/PreLandscapes/step1_LML_source_pre.R")
 
 n.posts = 3000
-
+n_species = 7
 ## Posterior data frame --------------------
 ## Combining chains 
 
@@ -24,7 +24,37 @@ chains.pre <- as.mcmc.list(jags_output.pre) ## set chains
 chains_combined <- gtable_combine(chains.pre) ## combine chains
 
 
+mcmc_chains <- as.mcmc.list(jags_output.pre)
 
+chains <- as.mcmc.list(jags_output.pre) ## set chains
+
+rhat_values <- gelman.diag(chains, multivariate = FALSE)$psrf[, "Point est."]
+
+rhat_values %>% as.matrix() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "rowname") %>%
+  separate(rowname,  into = c("parameter", "index"), remove = F) %>%
+  #  select(parameter, V1) %>%
+  filter(V1 > 1.1)
+
+
+chain1 = as.matrix(chains.pre[[1]]) %>% as.data.frame() %>%
+  mutate(chain = 1)
+chain2 = as.matrix(chains.pre[[2]]) %>% as.data.frame() %>%
+  mutate(chain = 2)
+
+combined_density = rbind(chain1, chain2) 
+
+combined_density %>% ggplot(aes(x = `N_total[3]`, fill = as.factor(chain))) +
+  geom_density(alpha = .05)
+
+
+for(i in c(1:n_species)){
+  g = combined_density %>% ggplot(aes(x = combined_density[,i], col = as.factor(chain))) +
+    geom_density(alpha = .05) +
+    xlab(paste(i))
+  print(g)
+}
 
 
 # Define names for the 
@@ -117,6 +147,8 @@ abund.dat %>%
   ylab("Total Abundance") +
   xlab("Year Index") +
   labs(col = "Species")
+
+
 
 
 ## Table for looking at the abundance data

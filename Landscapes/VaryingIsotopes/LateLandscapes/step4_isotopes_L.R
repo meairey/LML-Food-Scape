@@ -60,6 +60,7 @@ data.early = read.csv("Data/JML.Data.Master.csv") %>%
 
 data = rbind(data.early, data.late)
 
+data = data.late ## excluding BB for now from this late web
 
 data %>% ggplot(aes(x = iso_1, iso_2, col = group)) + 
   geom_point() + stat_ellipse()

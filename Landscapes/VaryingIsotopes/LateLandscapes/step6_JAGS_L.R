@@ -6,12 +6,14 @@ library(rjags)
 #bef.combined.model = read_file("Working scripts/Models/bef_combined.txt")
 #zero.inflated.model = read_file("Working scripts/Models/zero_inflated.txt")
 full_model = read_file("Data/Models/updated_full.txt")
+model = read_file("Data/Models/cscu_model2") ## Model two gets rid of one of the varience parameters for detection probability based on site
 
 # options for running jags
-parms <- list(); parms$n.iter=2*10^4; parms$n.burnin=1*10^3; 
+parms <- list(); parms$n.iter=2*10^4; parms$n.burnin=2*10^5; 
 parms$n.thin=10; parms$n.chains=2  
 
 set.seed(123)
+
 
 
 # Loading in all Jags Data from other scripts -------
@@ -29,8 +31,6 @@ load("Data/VaryingIsotopesData/LateData/n_obs_mass_late.RData")
 load("Data/VaryingIsotopesData/LateData/observed_lengths_late.RData")
 
 #### Load in Effort Data --------
-
-## Load in effort data
 load("Data/VaryingIsotopesData/LateData/late_effortdata.RData")
 
 
@@ -46,10 +46,10 @@ Cmax = apply(mean_catch_array, c(1,4), max,na.rm=T) ## Set up innits
 
 
 ## Set up variables for JAGS data
-sites =  dim(mean_catch_array[,,1,1])[1]
-year = (mean_catch_array[,,,1] %>% dim())[3]
-replicates = (mean_catch_array[,,,1] %>% dim())[2]
-species = (mean_catch_array %>% dim())[4]
+sites =  dim(mean_catch_array)[1]
+year = dim(mean_catch_array)[3]
+replicates = dim(mean_catch_array)[2]
+species = dim(mean_catch_array)[4]
 
 #### Load in covariates -------------------
 
@@ -58,6 +58,7 @@ species = (mean_catch_array %>% dim())[4]
 load("Data/VaryingIsotopesData/LateData/ice_off.RData") # Ice off new model
 load("Data/VaryingIsotopesData/LateData/hab_cov.RData") # Habitat new model
 load("Data/VaryingIsotopesData/LateData/shoreline_length.RData") # Length new model
+load("Data/VaryingIsotopesData/site_dist.RData") # Site dissimirity matrix based on adjacency and habitat
 
 # Jags Data
 alpha <- 1
@@ -80,20 +81,20 @@ beta <- 1
 ## Prior setup
 priors=list(); priors$R=1*diag(2); priors$k=2; priors$tau.mu=1.0E-3 
 
-shoreline_length[,1:2] %>% 
-  mutate(`2` = replace_na(`2`, 1))
+
 
 jags_data = list(sites = sites,
                  year = year,
+
                  replicates = replicates, 
                  species = species ,
                  C = mean_catch_array, 
-                 site_proportion = shoreline_length[,1:2] %>% 
-                   mutate(`2` = replace_na(`2`, 1)),
-                 hab = as.numeric(hab$sub),
+                 shoreline_length = as.numeric(shoreline_length$shoreline_std),
+                 hab = scale(as.numeric(hab$sub)) %>% as.numeric,
                  num_hab = 2, 
-                 wood = as.numeric(hab$mean_w), 
+                 wood = as.numeric(hab$wood), 
                  ice_off = ice_off,
+                 site_dist = dist_vec,
                  ## mass components
                  mass_observed_lake = observed_lengths.late,
                  n_obs_mass = n_obs_mass.late,
@@ -118,13 +119,14 @@ inits = function() list(N = Cmax,
                                   dim = c(n_species, n.iso)))
 
 
+
 ## Size data -------------------------------------------------
 # Specify parameters to monitor ------------------------------------------------
-jags_parameters = c("lambda", "p", "N","avg_mass", "mu", "Sigma2")
+jags_parameters = c("lambda", "p", "N_total","avg_mass", "mu", "Sigma2")
 # Compile and run the model ----------------------------------------------------
 
 
-jags_model <- jags.model(textConnection(full_model), 
+jags_model <- jags.model(textConnection(model), 
                          data = jags_data, 
                          n.chains = parms$n.chains, 
                          inits = inits)

@@ -1,7 +1,8 @@
 '%nin%' = Negate(`%in%`)
 ## Read in the data file with lengths -----------
 
-fish = read.csv("../LML_SMB_removal/Data/FISH_MEASUREMENT_LML.csv")
+fish = read.csv("../AFRP/Data/FISH_MEASUREMENT_LML.csv") %>%
+  filter(!(SPECIES == "RS" & LENGTH == 8 & WEIGHT == 2))
 
 ## Manually enter the slimy sculpin data -----------
 
@@ -24,6 +25,12 @@ lml.species = unique(LML.fish$SPECIES)
 ## Set vectors to fill with the coefficients from the model
 a = vector()
 b = vector()
+
+fish %>% 
+  filter(SPECIES == "RS") %>%
+  select(LENGTH, WEIGHT) %>%
+  na.omit() %>%
+  arrange(WEIGHT)
 
 
 ## For loop ------------

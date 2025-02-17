@@ -1,6 +1,6 @@
 library(tidyverse)
 
-source("Landscapes/LateLandscapes/step1_LML_source_L.R")
+source("Landscapes/VaryingIsotopes/LateLandscapes/step1_LML_source_L.R")
 ## Load in weight frame from length_weight.R script
 
 
@@ -10,7 +10,7 @@ weight.frame = read.csv("Data/weight_frame.csv", header = T)
 observed_lengths.late = weight.frame %>% 
   arrange(SPECIES) %>%
   select(SPECIES, YEAR,weight_e) %>% 
-  filter(SPECIES %in% species.early) %>%
+  filter(SPECIES %in% species.late) %>%
   filter(YEAR <= year_max & YEAR >= year_min, 
          is.na(weight_e) == F) %>%
   
@@ -25,7 +25,7 @@ observed_lengths.late = weight.frame %>%
   select(-YEAR) %>%
   column_to_rownames(var = "SPECIES")
 
-save(file = "Data/LateData/observed_lengths_late.RData", observed_lengths.late)
+save(file = "Data/VaryingIsotopesData/LateData/observed_lengths_late.RData", observed_lengths.late)
 
 #how many length observations for each species
 # Count the number of non-NA values in each row
@@ -34,4 +34,4 @@ n_obs_mass.late = (observed_lengths.late %>%
   mutate(n = sum(!is.na(c_across(everything())))) %>%
   ungroup())$n
 
-save(file = "Data/LateData/n_obs_mass_late.RData", n_obs_mass.late)
+save(file = "Data/VaryingIsotopesData/LateData/n_obs_mass_late.RData", n_obs_mass.late)

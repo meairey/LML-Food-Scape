@@ -34,16 +34,17 @@ LML.data = read.csv("Data/LML_data_cpue.csv")
 
 
 ## What species to include in the early period
-species.early = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
+species.early = c("BB", "CC","CS","MM","PS","SMB","SS","WS")
+## From the catch data i'm excluding fish occuring in abundance of <10 during period years
 ## what species to include in the late period
 #species.late = c("CC","CS","MM","PS","SMB","WS")  ## Going to try to simulate data for these species in the interim
 species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 
 ## Set parameters for the model run
-year_max = 2005
+year_max = 2004
 year_min = 2001
 species = species.early
 ## Graphing 
-legend = data.frame(group = c(1:10), 
+legend = data.frame(group = c(1:8), 
                     species  = species.early)
 

@@ -37,15 +37,15 @@ LML.data = read.csv("Data/LML_data_cpue.csv")
 species.early = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 ## what species to include in the late period
 #species.late = c("CC","CS","MM","PS","SMB","WS")  ## Going to try to simulate data for these species in the interim
-species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
+species.late = c( "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 
 ## Set parameters for the model run
 year_max = 2023
 year_min = 2019
 species = species.early
 ## Graphing 
-legend = data.frame(group = c(1:10), 
-                    species = species.early )
+legend = data.frame(group = c(1:9), 
+                    species = species.late )
 
 
 ## Backtracing -------------

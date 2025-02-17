@@ -15,6 +15,7 @@ quantiles_95 <- function(x) {
 x.p = seq(-38,-20,length.out=100); 
 y.p = seq(0,9, length.out = 100) 
 parms <- list();
+
 parms$n.iter=2*10^4; 
 parms$n.burnin=1*10^3; 
 parms$n.thin=10
@@ -33,23 +34,43 @@ source("Isotope_Comparisons/IsotopeFunctions.R")
 
 load(file = "Data/IsotopeComparisons/IsotopeData.RData")
 
-data_simmr = full %>%
-  select(C, N, period, Species)  %>%
-  rename(iso1 = C, 
-         iso2 = N, 
+## Regular data formatting
+data_simmr = data %>%
+  select(D13C, D15N, period, TAXON)  %>%
+  rename(iso1 = D13C, 
+         iso2 = D15N, 
          community = period, 
-         group = Species) 
+         group = TAXON) 
 
-legend = data_simmr %>%
-  rename(TAXON = group) %>%
-  mutate(group = as.numeric(as.factor(TAXON)), 
-         community = as.numeric(as.factor(community))) %>%
-  arrange(community, group) %>%
-  select(community, TAXON, group) %>%
+## Trying to split out SMB1/2
+
+data_simmr = data %>% 
   unique() %>%
-  rename(CODE = TAXON) %>%
-  mutate(color = "black") %>%
-  mutate(common = "n")
+  filter(TAXON == "SMB") %>%
+  bind_rows(.,data) %>%
+  arrange(ITEM_N) %>%
+  group_by(ITEM_N, ISO_FISH_N) %>%
+  mutate(count = c(1:length(TAXON))) %>%
+
+  select(count, TAXON, LENGTH, everything()) %>%
+  ungroup() %>%
+
+  mutate(TAXON = case_when(TAXON == "SMB" & LENGTH < 200 & count == 2 ~ "SMB1" ,
+                           TAXON == "SMB" & LENGTH >= 200 & count == 2 ~ "SMB2",
+                           TAXON == "SMB" & count == 1 ~ "SMB",
+                           TAXON != "SMB" ~ TAXON)) %>%
+  group_by(TAXON, period) %>%
+  filter(TAXON != "NA") %>%
+  select(D13C, D15N, period, TAXON)  %>%
+  rename(iso1 = D13C, 
+         iso2 = D15N, 
+         community = period, 
+         group = TAXON) %>%
+  ungroup() 
+
+
+data_simmr$community %>% unique()
+
 
 save(legend, file = "Data/IsotopeComparisons/simmr_legend.RData")
 
@@ -65,6 +86,30 @@ data_siber = data_simmr %>%
   arrange(community, group) %>%
   select(iso1, iso2,group, community) 
 
+
+
+## Create Legend
+legend.a = data_simmr %>%
+
+  rename(TAXON = group) %>%
+  mutate(group = as.numeric(as.factor(TAXON)), 
+         community  = as.numeric(as.factor(community))) %>%
+  arrange(community, group) %>%
+  select(community, TAXON, group) %>%
+  unique() %>%
+  rename(CODE = TAXON) %>%
+  mutate(common = "n")
+
+col_join = data.frame(color = c("#FF8C00", "#FFD700", "#87CEEB", "#4682B4", 
+  "#6A5ACD", "#F4A460", "#32CD32", "#FF4500", 
+  "#8B0000", "#FF69B4", "#FF6347", "#40E0D0", 
+  "#2E8B57", "#D2691E", "#DAA520", "#FFB6C1", "#800080" ),
+  CODE = unique(legend$CODE))
+
+legend = legend.a %>% left_join(col_join)
+save(legend, file = "Data/Legend.col.RData")
+
+## Siber Object
 siber.example <- createSiberObject(as.data.frame(data_siber)) ## Creates data object 
 
 posterior <- siberMVN(siber.example, parms, priors) ## Generates posterior distributions 
@@ -163,8 +208,8 @@ df = df.long %>%
   mutate(period = case_when(Community == 1 ~ "early", Community == 2 ~ "late")) %>%
   group_by(sorted_comparison, period) %>%
   summarize(mean = round(mean(Values), digits = 2), 
-            q2.5 = round(quantiles_95(Values), digits = 2),
-            q97.5 = round(quantiles_95(Values), digits = 2)) %>%
+            q2.5 = round(quantiles_95(Values)[1], digits = 2),
+            q97.5 = round(quantiles_95(Values)[5], digits = 2)) %>%
   mutate(mean = paste(mean, "[", q2.5,",",q97.5,"]")) %>%
   separate(sorted_comparison, into = c("Species1","Species2"))
 
@@ -238,3 +283,12 @@ med_area = ellipse.area %>%
                             community == 2 ~ "late"))
 
 save(med_area, file ="Data/IsotopeComparisons/med_area.RData")
+
+
+### Plotting isotope webs
+
+posterior
+
+source("../thermal-guild-otolith/isotope_functions_update.R")
+
+

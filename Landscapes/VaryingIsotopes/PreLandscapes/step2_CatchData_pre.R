@@ -40,7 +40,9 @@ sample %>%
   geom_point() +
   facet_wrap(~SITE_N, scales = "free_y")
 
-
+step_a %>% 
+  group_by(SPECIES) %>%
+  summarize(total_catch = sum(mean_catch))
 
 
 
@@ -67,8 +69,8 @@ sites = sort(unique(df$SITE))
 # Create an empty 4D array
 mean_catch_array <- array(
   NA, 
-  dim = c(length(sites), length(rep_nums),  length(species)),
-  dimnames = list(sites = sites, rep_num = rep_nums,  SPECIES = species)
+  dim = c(length(sites), 1,length(rep_nums),  length(species)),
+  dimnames = list(sites = sites, "replicates" = 1 , "year" = rep_nums,  SPECIES = species)
 )
 
 # Fill the array
@@ -76,15 +78,26 @@ for (i in seq_len(nrow(df))) {
   row <- df[i, ]
   mean_catch_array[
     as.character(row$SITE),
+    1,
     as.character(row$rep_num),
     
     as.character(row$SPECIES)
   ] <- row$mean_catch
 }
 
+dim(mean_catch_array)
+
+mean_catch_array %>% dim()
+
+mean_catch_array = mean_catch_array[, , 1:5,,drop = FALSE ]
 save(mean_catch_array, file = "Data/VaryingIsotopesData/PreData/mean_catch_array_pre.RData")
 
 
+df %>%
+  group_by(SITE) %>%
+  summarize(max_rep = max(rep_num)) %>%
+  ungroup() %>%
+  summarize(summary = median(max_rep))
 
 
 

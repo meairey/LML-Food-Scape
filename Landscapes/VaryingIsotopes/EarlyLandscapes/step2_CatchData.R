@@ -5,6 +5,9 @@ source("Landscapes/VaryingIsotopes/EarlyLandscapes/step1_LML_source.R")
 
 ## I'm a little worried that the multiple observation issue is going to catch up again here. But, for now, I'm simplifying this by just taking average catch and average effort for each site in each year. Not putting in each separately.
 
+
+
+
 step_a = LML.data %>%
   filter(YEAR >= year_min & YEAR != 2002 & YEAR <= year_max, ## here it details the min and max
          SITE != "BEF.LML.NA") %>%
@@ -23,6 +26,10 @@ step_a = LML.data %>%
   ungroup() %>%
   filter(SPECIES %in% species)
 
+early.sp = (step_a %>% 
+  group_by(SPECIES) %>%
+  summarize(total_catch = sum(mean_catch)) %>%
+  filter(total_catch > 10))$SPECIES
 
 
 ### New Catch Model
@@ -45,22 +52,25 @@ shoreline_length = rep_group %>%
   mutate(`1` = `1` / total_length,  ## Calculate the proportions for each replicate for each site
          `2` = `2` / total_length)
 
+shoreline_length = rep_group %>% arrange(site) %>%
+  select(shoreline_length)
 ## Abundance Array -----------------------------------
 ## An intermediate step for creating the array
 df = step_a %>% 
   left_join(rep_group, by = c("SITE" = "site")) %>%
+  filter(SPECIES %in% early.sp) %>%
   mutate(mean_catch = round(mean_catch, digits = 0)) %>%
-  select(YEAR, SPECIES, rep_group,  mean_catch) %>%
+  select(YEAR, SPECIES, index,  mean_catch) %>%
   na.omit()%>%
   
-  group_by(YEAR,SPECIES, rep_group) %>%
+  group_by(YEAR,SPECIES, index) %>%
   mutate(rep_num = c(1:length(mean_catch))) %>%
   ungroup() 
 
 # Get unique values for each dimension
 years <- sort(unique(df$YEAR))
 species <- unique(df$SPECIES)
-rep_groups <- sort(unique(df$rep_group))
+rep_groups <- sort(unique(df$index))
 rep_nums <- sort(unique(df$rep_num))
 
 # Create an empty 4D array
@@ -74,7 +84,7 @@ mean_catch_array <- array(
 for (i in seq_len(nrow(df))) {
   row <- df[i, ]
   mean_catch_array[
-    as.character(row$rep_group),
+    as.character(row$index),
     as.character(row$rep_num),
     as.character(row$YEAR),
     as.character(row$SPECIES)

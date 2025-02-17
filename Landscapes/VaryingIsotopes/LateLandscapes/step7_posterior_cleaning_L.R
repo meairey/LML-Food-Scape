@@ -4,7 +4,7 @@ libraries("snow","plotrix", "SIBER","ellipse","mixtools",
           "mvtnorm","plot3D","scatterplot3d","scales","viridis","ggplot2",
           "gridExtra", "MASS","plotly", "knitr","tidyverse", "mvtnorm")
 
-
+library(coda)
 ## Load in data -----------------
 
 
@@ -22,11 +22,64 @@ n_sites = 32
 load("Data/VaryingIsotopesData/LateData/LateJagsOutput.RData")
 
 chains <- as.mcmc.list(jags_output.late) ## set chains
+
+rhat_values <- gelman.diag(chains, multivariate = FALSE)$psrf[, "Point est."]
+
+rhat_values %>% as.matrix() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "rowname") %>%
+  separate(rowname,  into = c("parameter", "index"), remove = F) %>%
+#  select(parameter, V1) %>%
+  filter(V1 > 1.1)
+
 chains_combined <- gtable_combine(chains) ## combine chains
 
+chain1 = as.matrix(chains[[1]]) %>% as.data.frame() %>%
+  mutate(chain = 1)
+
+chain2 = as.matrix(chains[[2]]) %>% as.data.frame() %>%
+  mutate(chain = 2)
+
+combined_density = rbind(chain1, chain2) 
+
+
+for(i in c(1:n_species)){
+  g = combined_density %>% ggplot(aes(x = combined_density[,i], col = as.factor(chain))) +
+    geom_density(alpha = .05) +
+    xlab(paste(i))
+  print(g)
+}
+
+
+  
+combined_density %>% ggplot(aes(x = `lambda[28,1]`, col = as.factor(chain))) +
+  geom_density(alpha = .05) 
 
 
 
+combined_density[1:100,] %>% 
+  select(contains("p", ignore.case = TRUE)) %>%
+  rownames_to_column(var = "index") %>%
+  pivot_longer(2:length(.[1,]), names_to = "metric", 
+               values_to = "p") %>%
+  separate(metric, into = c("metric", "site", "year","sp")) %>%
+  group_by(sp, index) %>%
+  summarize(mean = mean(p)) %>%
+  ggplot(aes(y = mean, fill = sp)) + geom_density()
+
+
+
+combined_density %>%
+  group_by(chain) %>%
+  mutate(index = c(1:length(chain))) %>%
+  ggplot(aes( x = index, y = `N_total[4]`, col = as.factor(chain) ) ) +
+  geom_line()
+
+combined_density %>%
+  group_by(chain) %>%
+  mutate(index = c(1:length(chain))) %>%
+  ggplot(aes( x = index, y = `p[31,10]`, col = as.factor(chain) ) ) +
+  geom_line()
 
 # Define names for the 
 names = (data.frame(colnames = colnames(jags_output.late[[1]]))  %>%
@@ -117,14 +170,18 @@ abund.dat %>%
 
 
 ## Table for looking at the abundance data
-abund.dat %>% 
+abund.sum.late = abund.dat %>% 
   mutate(species = as.numeric(species)) %>%
   rename(group = species) %>%
   left_join(legend)  %>%
   group_by(species) %>%
   summarize(tot_abund = mean(tot_abund))
 
+save(abund.sum.late, file = "Data/VaryingIsotopesData/late.abund.RData")
 
+load(file =  "Data/VaryingIsotopesData/early.abund.RData")
+abund.sum.early
+abund.sum.late
 
 
 mu.dat = chain_dat %>%

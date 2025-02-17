@@ -1,6 +1,6 @@
 library(tidyverse)
 
-source("Landscapes/PreLandscapes/step1_LML_source_pre.R")
+source("Landscapes/VaryingIsotopes/PreLandscapes/step1_LML_source_pre.R")
 ## Load in weight frame from length_weight.R script
 
 
@@ -33,7 +33,7 @@ t(observed_lengths.pre) %>%
   group_by(name) %>%
   summarize(mean = mean(value))
 
-save(file = "Data/PreData/observed_lengths_pre.RData", observed_lengths.pre)
+save(file = "Data/VaryingIsotopesData/PreData/observed_lengths_pre.RData", observed_lengths.pre)
 
 #how many length observations for each species
 # Count the number of non-NA values in each row
@@ -42,7 +42,7 @@ n_obs_mass.pre = (observed_lengths.pre %>%
   mutate(n = sum(!is.na(c_across(everything())))) %>%
   ungroup())$n
 
-save(file = "Data/PreData/n_obs_mass_pre.RData", n_obs_mass.pre)
+save(file = "Data/VaryingIsotopesData/PreData/n_obs_mass_pre.RData", n_obs_mass.pre)
 
 
 

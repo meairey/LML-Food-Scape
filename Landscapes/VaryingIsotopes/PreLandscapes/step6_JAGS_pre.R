@@ -7,10 +7,10 @@ library(rjags)
 #zero.inflated.model = read_file("Working scripts/Models/zero_inflated.txt")
 
 
-model.2000 = read_file("Data/Models/Model_2000.txt")
+model.2000 = read_file("Data/Models/cscu_model2")
 
 # options for running jags
-parms <- list(); parms$n.iter=2*10^4; parms$n.burnin=1*10^3; 
+parms <- list(); parms$n.iter=3*10^5; parms$n.burnin=1*10^4; 
 parms$n.thin=10; parms$n.chains=2  
 
 set.seed(123)
@@ -39,7 +39,7 @@ load(file = "Data/VaryingIsotopesData/PreData/mean_catch_array_pre.RData")
 
 
 ## CMax for innits is the maximum number for any site/species combo
-Cmax = apply(mean_catch_array, c(1,3), max,na.rm=T) ## Set up innits
+Cmax = apply(mean_catch_array, c(1,4), max,na.rm=T) ## Set up innits
 
 
 # Number of sites, years, and species
@@ -50,16 +50,20 @@ Cmax = apply(mean_catch_array, c(1,3), max,na.rm=T) ## Set up innits
 ## Set up variables for JAGS data
 
 ## Set up variables for JAGS data
-sites =  dim(mean_catch_array[,,1])[1]
-
+sites =  dim(mean_catch_array)[1]
+years = dim(mean_catch_array)[3] ## I messed around with labelling here. The years are actually the temporal replicates within the year 2000, and the reps are just 1. This makes it easier when adjustin the model to work across time periods...
 replicates = (mean_catch_array%>% dim())[2]
-species = (mean_catch_array %>% dim())[3]
+species = (mean_catch_array %>% dim())[4]
 
 
 
 #### Load in covariates -------------------
 load("Data/VaryingIsotopesData/PreData/habs.RData")
 load("Data/VaryingIsotopesData/PreData/ice_off_pre.RData")
+
+
+load("Data/VaryingIsotopesData/LateData/shoreline_length.RData")
+load("Data/VaryingIsotopesData/LateData/hab_cov.RData")
 
 
 # Jags Data
@@ -89,12 +93,14 @@ jags_data = list(sites = sites,
                  
                  replicates = replicates, 
                  species = species ,
+                 year = years,
                  C = mean_catch_array, 
-                 
-                 hab = as.numeric(habs[,3]),
+                 shoreline_length =(shoreline_length$shoreline_length %>% as.numeric()),
+                 mean_length = mean((shoreline_length$shoreline_length)),
+                 hab = hab$sub,
                  num_hab = 2, 
-                 wood = as.numeric(habs[,4]), 
-                 ice_off = ice_off[1],
+                 wood = hab$wood, 
+                 ice_off = rep(ice_off[1], length = years),
                  ## mass components
                  mass_observed_lake = observed_lengths.pre,
                  n_obs_mass = n_obs_mass.pre,
@@ -120,7 +126,7 @@ inits = function() list(N = Cmax,
 
 ## Size data -------------------------------------------------
 # Specify parameters to monitor ------------------------------------------------
-jags_parameters = c("lambda", "p", "N","avg_mass", "mu", "Sigma2")
+jags_parameters = c("lambda", "p", "N_total","avg_mass", "mu", "Sigma2")
 # Compile and run the model ----------------------------------------------------
 
 jags_model <- jags.model(textConnection(model.2000), 
