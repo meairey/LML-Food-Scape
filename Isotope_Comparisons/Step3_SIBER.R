@@ -55,8 +55,9 @@ data_simmr = data %>%
   select(count, TAXON, LENGTH, everything()) %>%
   ungroup() %>%
 
-  mutate(TAXON = case_when(TAXON == "SMB" & LENGTH < 200 & count == 2 ~ "SMB1" ,
-                           TAXON == "SMB" & LENGTH >= 200 & count == 2 ~ "SMB2",
+  mutate(TAXON = case_when(TAXON == "SMB" & LENGTH < 200  & LENGTH > 100 & count == 2 ~ "SMB2" ,
+                           TAXON == "SMB" & LENGTH > 0 & LENGTH < 100 & count == 2 ~ "SMB1",
+                           TAXON == "SMB" & LENGTH >= 200 & count == 2 ~ "SMB3",
                            TAXON == "SMB" & count == 1 ~ "SMB",
                            TAXON != "SMB" ~ TAXON)) %>%
   group_by(TAXON, period) %>%
@@ -69,10 +70,21 @@ data_simmr = data %>%
   ungroup() 
 
 
+data_simmr %>% 
+  group_by(group, community) %>%
+  summarize(n = n())
+
 data_simmr$community %>% unique()
 
 
-save(legend, file = "Data/IsotopeComparisons/simmr_legend.RData")
+data_simmr %>%
+  filter(group %in% c("SMB1", "SMB2", "SMB3")) %>%
+  ggplot(aes(x = iso1, y = iso2, col = group)) + 
+  geom_point() + 
+  stat_ellipse() +
+  facet_wrap(~community)
+
+#save(legend, file = "Data/IsotopeComparisons/simmr_legend.RData")
 
 data_siber = data_simmr %>%
   mutate(group = as.numeric(as.factor(group)),
@@ -84,9 +96,13 @@ data_siber = data_simmr %>%
   mutate(total = n()) %>%
   filter(total > 3) %>%
   arrange(community, group) %>%
-  select(iso1, iso2,group, community) 
+  select(iso1, iso2,group, community) ## Does still have common shiner
 
 
+
+data_siber %>%
+  left_join(legend) %>%
+  filter(CODE == "CS")
 
 ## Create Legend
 legend.a = data_simmr %>%
@@ -103,8 +119,8 @@ legend.a = data_simmr %>%
 col_join = data.frame(color = c("#FF8C00", "#FFD700", "#87CEEB", "#4682B4", 
   "#6A5ACD", "#F4A460", "#32CD32", "#FF4500", 
   "#8B0000", "#FF69B4", "#FF6347", "#40E0D0", 
-  "#2E8B57", "#D2691E", "#DAA520", "#FFB6C1", "#800080" ),
-  CODE = unique(legend$CODE))
+  "#2E8B57", "#D2691E", "#DAA520", "#FFB6C1", "#800080" , "black"),
+  CODE = unique(legend.a$CODE))
 
 legend = legend.a %>% left_join(col_join)
 save(legend, file = "Data/Legend.col.RData")
@@ -142,7 +158,7 @@ overlap.long = overlap_data %>%
   pivot_longer(2:length(.[1,]),
                names_to = "Community", 
                values_to = "Values") %>% 
-  na.omit() %>%
+  #na.omit() %>%
   rename("Species_Pair" = `SppPair`) %>% 
   separate(Community, into = c("c", "Community", "post")) %>%
   select(-c) %>%
@@ -291,4 +307,33 @@ posterior
 
 source("../thermal-guild-otolith/isotope_functions_update.R")
 
+### Ontogenetic shifts in bass?
+data %>% 
+  unique() %>%
+  filter(TAXON == "SMB") %>%
+  bind_rows(.,data) %>%
+  arrange(ITEM_N) %>%
+  group_by(ITEM_N, ISO_FISH_N) %>%
+  mutate(count = c(1:length(TAXON))) %>%
 
+  select(count, TAXON, LENGTH, everything()) %>%
+  ungroup() %>%
+
+  mutate(TAXON = case_when(TAXON == "SMB" & LENGTH >= 100 & LENGTH < 200 & count == 2 ~ "SMB2" ,
+                           TAXON == "SMB" & LENGTH < 100 & count == 2 ~ "SMB1" ,
+                           TAXON == "SMB" & LENGTH >= 200 & count == 2 ~ "SMB3",
+                           TAXON == "SMB" & count == 1 ~ "SMB",
+                           TAXON != "SMB" ~ TAXON)) %>%
+  group_by(TAXON, period) %>%
+  filter(TAXON != "NA") %>%
+  select(D13C, D15N, period, TAXON)  %>%
+  rename(iso1 = D13C, 
+         iso2 = D15N, 
+         community = period, 
+         group = TAXON) %>%
+  ungroup() %>%
+  filter(group %in% c("SMB1", "SMB2", "SMB3")) %>%
+  ggplot(aes(x = iso1, y = iso2, col = group)) + 
+  geom_point() + 
+  stat_ellipse(level = .4) +
+  facet_wrap(~community)

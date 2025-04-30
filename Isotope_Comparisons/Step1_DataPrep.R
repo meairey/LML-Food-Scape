@@ -1,4 +1,5 @@
 library(tidyverse)
+library(wesanderson)
 `%nin%` = Negate(`%in%`)
 
 ## Loading in measurement information
@@ -6,16 +7,13 @@ fish_lml = read.csv("../AFRP/Data/FISH_MEASUREMENT_LML.csv") %>%
   filter(FISH_N != "") %>%
   select(YSAMP_N:WEIGHT) %>% unique()
 
-fish_lml %>% filter(FISH_N == "SMB.LML.092221.BEF.007")
+lml_sample = read.csv("Data/FISH_SAMPLE_2024.csv")
 
-
-"NRD.LML.092321.BEF.001" == "NRD.LML.092321.BEF.001"
-
-fish_lml %>% filter(SPECIES == "NRD")
+lml_sample %>% filter(YSAMP_N == "GLN.LML.2023.003")
 
 ## Checking dataframe
 ## Access Database
-data.acc = read.csv("Data/IsotopeComparisons/Clean/SI_MEASUREMENT.csv") %>%
+data.acc = read.csv("../1.clean_isotope/SI_MEASUREMENT.csv") %>%
   filter(corrected %nin% c("delete duplicate","duplicate delete")) %>%
   select(-corrected)
 
@@ -23,7 +21,7 @@ data.acc %>% filter(TAXON == "NRD") %>%
   filter(grepl( "LML",ISO_FISH_N))
 
 
-sample.clean = read.csv("Data/IsotopeComparisons/Clean/SI_SAMPLE.csv")
+sample.clean = read.csv("../1.clean_isotope/SI_SAMPLE.csv")
 da.acc = left_join(data.acc, sample.clean, by = "ISO_YSAMP_N") %>%
   filter(#GROUP == "FISH", 
          str_detect(ISO_YSAMP_N, "LML"), 
@@ -46,8 +44,9 @@ miss.dat = left_join(mi.me, mi.sa, by = "ISO_YSAMP_N") %>% filter(YEAR < 2005) %
 
 
 ## Load in more recent data
-recent.data = read.csv("Data/IsotopeComparisons/Clean/iso_data_clean.csv") 
-recent.sample = read.csv("Data/IsotopeComparisons/Clean/isotope_sample.csv") %>%
+recent.data = read.csv("../1.clean_isotope/iso_measurement.csv") %>%
+  filter(grepl("LML",ISO_YSAMP_N)| ISO_YSAMP_N == "CHECK" | ISO_YSAMP_N == "UPDATE")
+recent.sample = read.csv("../1.clean_isotope/isotope_sample.csv") %>%
   filter(WATER == "LML")
 
 rec.dat = left_join(recent.data, recent.sample, by = "ISO_YSAMP_N") %>%
@@ -62,8 +61,46 @@ rec.dat %>%
   filter(TAXON == "SS") %>%
   left_join(fish_lml, by = c("ISO_FISH_N" = "FISH_N"))
 
-rec.dat %>% filter(TAXON == "SS")
+rec.dat %>% filter(TAXON == "ST")
 
+## Updated samples that need ysamp in the isotope_sample sheet
+
+
+recent.data %>% filter(ISO_YSAMP_N %nin% recent.sample$ISO_YSAMP_N) %>%
+  select(ISO_YSAMP_N) %>%
+  unique()
+
+## This contains a subset of fish that are missing YSAMP info and thus not getting included?
+
+
+updating.samples = recent.data %>% 
+  filter(ISO_YSAMP_N %in% c("UPDATE", "CHECK", "")) %>%
+  left_join(fish_lml, by = c("ISO_FISH_N" = "FISH_N")) %>%
+  select(YSAMP_N, everything()) %>%
+  left_join(lml_sample) 
+  
+samples.updated = updating.samples %>% 
+  select(YSAMP_N, ISO_YSAMP_N, YEAR, SITE_N, DAY_N, DSAMP_N) %>%
+  unique() %>%
+  arrange(YEAR)
+
+
+#write.csv(updating.samples, "updatingmeasurement.csv")
+
+#write.csv(samples.updated, "updatingsamples.csv")
+
+new.samps = read.csv("updatingsamples.csv")
+
+new.samps %>% 
+  group_by(YSAMP_N) %>%
+  summarize(n = n())
+
+cat = updating.samples %>% 
+  select(-ISO_YSAMP_N) %>% 
+    
+    left_join(new.samps, by = "YSAMP_N")
+
+write.csv(cat, "cat.csv")
 ## Adding in the additional fish from Kim 1/21/2025
 ad.sa = read.csv("Data/IsotopeComparisons/Clean/sample_additional_fish.csv") %>%
   unique() %>%
@@ -82,6 +119,8 @@ ad.dat = left_join(ad.ma, ad.sa, by = "ISO_YSAMP_N") %>%
 ## Full measurement file
 
 measurement = rbind(da.acc, miss.dat, rec.dat, ad.dat)
+## I think the clean updated data sheet in the 1. clean istope folder contains the additional fish I should check though
+measurement = rbind(da.acc, miss.dat, rec.dat)
 
 measurement$GROUP %>% unique()
 
@@ -92,7 +131,7 @@ measurement %>% filter(GROUP == "PERI", WATER == "LML")
 measurement %>%
   filter(GROUP == "FISH") %>%
   ggplot(aes(x = SITE_N,y = TAXON)) + 
-  geom_point() + 
+  geom_point(alpha = .1) + 
   facet_wrap(~YEAR)
 
 ## Get lengths out of JML file
@@ -134,8 +173,17 @@ data = left_join(measurement, fish_lml, by = c("ISO_FISH_N" = "FISH_N")) %>%
          D15N = as.numeric(D15N)) %>% 
   mutate(period = case_when(YEAR < 2006 ~ "early" , YEAR > 2018 ~ "late"))
 
-save(data,  file= "Data/IsotopeComparisons/IsotopeData.RData")
 
+
+data %>%
+  group_by(TAXON, period) %>%
+  summarize(n = n()) %>%
+  print(n = 100)
+
+
+
+save(data,  file= "Data/IsotopeComparisons/IsotopeData.RData")
+full = data
 #write.csv( full,"LML_iso_corrected.csv", row.names = FALSE) ## Old probably delete
 
 ## JML Baselines
@@ -219,7 +267,7 @@ hab = read.csv("Data/IsotopeComparisons/Clean/BEFsites_LengthAndHabitat.csv")
 ## Pulling together the whole data
 ad.dat = left_join(ad.ma  %>%
   filter(GROUP == "FISH"), ad.sa, by = "ISO_YSAMP_N") %>%
-  left_join(fish_lml, by = c("ISO_FISH_N" = "FISH_N")) %>% 
+  left_join(fish_lml, by = c("ITEM_N" = "FISH_N")) %>% 
   left_join(hab)
 
 ad.dat %>% select(ISO_FISH_N)
@@ -243,7 +291,7 @@ ad.dat %>%
   filter(LENGTH < 100, 
          TAXON == "SMB", 
          SITE_N != "BEF.LML.005") %>%
-  ggplot(aes(x = D13C, y = D15N, col = Habitat)) +
+  ggplot(aes(x = D13C, y = D15N, col = Habitat, size = LENGTH)) +
   geom_point() + 
   stat_ellipse(level = .4) 
 
@@ -285,7 +333,9 @@ ad.dat %>%
 
 
 ad.dat %>% 
-  ggplot(aes(x = SITE_N, y =  D13C)) + geom_point()
+    filter(TAXON == "SMB") %>%
+  ggplot(aes(x = SITE_N, y =  D13C)) + geom_point() +
+  theme(axis.text.x = element_text(angle = 90)) 
 
 
 ## Looking at trophic shifts within site 5
@@ -315,14 +365,22 @@ ad.dat %>%
 ## So - ive made the breaks at 200
 ad.dat %>% 
   filter(TAXON == "SMB") %>%
-  mutate(TAXON = case_when(LENGTH < 200 ~ "SMB1",
+  mutate(TAXON = case_when(LENGTH < 100 ~ "SMB1",
                            #LENGTH >= 100 & LENGTH < 150 ~ "SMB2", 
-                           #LENGTH >=150 & LENGTH < 200 ~ "SMB3", 
+                           LENGTH >=100 & LENGTH < 200 ~ "SMB3", 
                            LENGTH >= 200 ~ "SMB4")) %>%
   filter(is.na(TAXON) == F) %>%
   ggplot(aes(x = D13C, y = D15N, col = TAXON)) + 
   geom_point() + 
-  stat_ellipse()
+  stat_ellipse(level = .4) + 
+  theme_minimal(base_size = 14) +
+  scale_color_manual("Size Group", values = wes_palette("Darjeeling1", type = "discrete", n = 3), labels = c("< 100 mm" , "< 100 & < 200", "> 200")) +
+  theme(legend.position = "top")
+  
+ad.dat %>% 
+  filter(TAXON == "SMB") %>%
+  count()
+
 
 
 

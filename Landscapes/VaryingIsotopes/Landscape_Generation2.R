@@ -613,8 +613,8 @@ species_Vols_graph = species_vols %>%
   ) 
 
 species_Vols_graph
-
-
+save(species_Vols_graph, file = "Data/VaryingIsotopesData/species_vols_graph.RData")
+load(file = "Data/VaryingIsotopesData/species_vols_graph.RData")
 # Total volume of the entire community
 
 
@@ -642,7 +642,7 @@ total_vols_graph = total_vols %>%
   ) 
 
   
-
+save(total_vols_graph, file = "Data/VaryingIsotopesData/total_vols_graph.RData")
 total_vols_graph
 
 total_vols_native = total_vols %>% 
@@ -676,73 +676,6 @@ total_vols_native
 
 
 
-
-# set up matrix for filtering within the for loop
-## This wont be backtransformed because I don't want to influence the dist with the natural variation in baseline
-z.mod = points.frame %>% 
-  group_by(post, x1_grid, x2_grid, community) %>%
-  summarize(total_volume = sum(z_string)) %>%
-  ungroup() %>%
-  select(total_volume, x1_grid, x2_grid, post, community) %>%
-      rename(xax = x1_grid, 
-             yax = x2_grid)
-
-## for loop
-dist_list = list()
-dist_list1 = list()
-options(expressions = 5000) 
-for(i in 1:length(unique(z.mod$community))){
-  for(h in 1:length(unique(z.mod$post))){
-    
-    
-    
-    z = z.mod  %>%
-      filter(community == i, post == h) %>%
-      pivot_wider(values_from = total_volume, names_from = xax) %>%
-      column_to_rownames(var = "yax") %>%
-      mutate_all(~ ifelse(is.na(.), 0, .))
-    
-    # Apply the function to your Z matrix
-    local_maxima <- find_local_maxima(z) 
-    # Get coordinates of local maxima
-    maxima_coords <- which(local_maxima, arr.ind = TRUE) ## 
-    max = data.frame(xax = (z.mod$xax %>% unique())[maxima_coords[,1]], 
-                     yax = (z.mod$yax %>% unique())[maxima_coords[,2]], 
-                     max = "max") 
-    
-    
-    max.frame.joined = left_join(z.mod, max)
-    
-    
-    
-    
-    dist_list1[[h]] =  dist(max %>% select(-max), method = "euclidean") %>% as.matrix() %>%
-      as.data.frame() %>%
-      rownames_to_column(., var = "row_index") %>%
-      pivot_longer(1:length(.[,1])+1, names_to = "col_index", values_to = "values") %>%
-      summarize(mean = mean(values), sd = sd(values))
-  }
-  
-  dist_list[[i]] = dist_list1
-}  
-
-dist_matrix = data.frame(value = c(unlist(dist_list[[1]]), unlist(dist_list[[2]]), unlist(dist_list[[3]]))) %>% 
-  mutate(metric = rep(c("mean", "sd"), n.posts*3),
-         post = rep(rep(1:n.posts, each = 2), 3), 
-         community= rep(c(1,2, 3), each = (n.posts*2 )))
-
-## Distance between all local maxima in the landscape
-
-dist_matrix %>% 
-  ggplot(aes(x = as.factor(community), y = value, fill = as.factor(community))) + 
-  geom_boxplot() + 
-  facet_wrap(~metric) +
-  theme_minimal(base_size = 14) + 
-  theme(legend.position = "none") +
-  ylab("Distance between maxima") + xlab("Period")  +
-  labs(col = "Period") +
-  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
-  scale_fill_manual( values = wes_palette("Darjeeling1", type = "discrete", n = 3),labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
 
 
 
@@ -788,7 +721,7 @@ nhsp.graph = points.frame %>%
 
 nhsp.graph
 
-
+save(nhsp.graph, file = "Data/VaryingIsotopesData/nhsp.graph.RData")
 
 dist.graph.dat = points.frame %>% 
   
@@ -969,8 +902,8 @@ rugosity = data.frame(values = unlist(rug),
                       post = rep(c(1:n.posts), rep = length(unique(z.mod$community))),
                       community = rep(unique(z.mod$community), each = n.posts))
 
-save(rugosity, file = "Data/VaryingIsotopesData/rugosity.RData")
-
+#save(rugosity, file = "Data/VaryingIsotopesData/rugosity.RData")
+load(file = "Data/VaryingIsotopesData/rugosity.RData" )
 rugosity_graph = rugosity %>%
   ggplot(aes(x = as.factor(community), y = values, col = as.factor(community))) + 
   #geom_boxplot() +
@@ -987,6 +920,8 @@ rugosity_graph = rugosity %>%
 
 rugosity_graph
 
+
+
 ## What about a metric that looks at the standard deviation in peak height? is this the same as rugosity?
 
 
@@ -994,13 +929,80 @@ rugosity_graph
 
 
 
-grid.arrange(total_vols_graph, axis_slice_graph,rugosity_graph, nhsp.graph, ncol = 2)
+
+
+load(file = "Data/VaryingIsotopesData/simmr_vol.RData")
+
+
+
+
+simmr_vol_graph = simmr_vol %>%
+#  filter(species != "SMB") %>%
+  mutate(weighted.avg = total_vol * value) %>% ## total volume per species/post/community * weighted average of that species' benthic contribution
+  group_by(post, community) %>%
+  mutate(total_web_vol = sum(total_vol)) %>% ## Total volume of the web
+  ungroup() %>%
+  group_by(post, community, total_web_vol) %>%
+  summarize(wa = sum(weighted.avg, na.rm = T)) %>% ## Add together the weighted volume for each species
+  ungroup() %>%
+  mutate(benthic.contr = wa / total_web_vol) %>% ## divide it by the total web volume to get proportion/percent contribution
+  ggplot(aes(x = as.factor(community), y = 100*benthic.contr, col = as.factor(community))) +
+  stat_summary(
+    fun.data = bayes_cri,   # Use Bayesian credible interval function
+    geom = "pointrange"
+  )  +
+  theme_minimal(base_size = 14) +
+  ylab("Benthic Contribution (%)") +
+  scale_x_discrete("Period",
+                   labels = c("1" = "P.R.", "2" = "P.I.", "3" = "M.O.") ) +
+
+  scale_color_manual("Community",
+                    values = wes_palette("Darjeeling1", 
+                                         type = "discrete", n = 3),
+  labels = c("1" = "P.R.", "2" = "P.I.", "3" = "M.O.")) +
+  theme(legend.position = "non")
+
+simmr_vol %>%
+#  filter(species != "SMB") %>%
+  mutate(weighted.avg = total_vol * value) %>%
+  group_by(post, community) %>%
+  mutate(total_web_vol = sum(total_vol)) %>%
+  ungroup() %>%
+  group_by(post, community, total_web_vol) %>%
+  summarize(wa = sum(weighted.avg, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(benthic.contr = wa / total_web_vol) %>% 
+  select(-total_web_vol, -wa) %>%
+  pivot_wider(names_from = community, values_from = benthic.contr) %>% 
+  mutate(diff13 = `3` - `2`,
+         diff12 = `2` - `1`,
+         diff23 = `3` - `2`) %>%
+  select(diff13, diff12, diff23) %>%
+  reframe(mean13 = mean(diff13), low13 = quantile(diff13, .025), up13 = quantile(diff13, .975),
+            mean12 = mean(diff12), low12 = quantile(diff12, .025), up12 = quantile(diff12, .975),
+            mean23 = mean(diff23), low23 = quantile(diff23, .025), up23 = quantile(diff23), .975)
+
+
+save(simmr_vol_graph, file = "Data/VaryingIsotopesData/simmr_vol_graph.RData")  
+
+
+load(file = "Data/VaryingIsotopesData/simmr_vol_graph.RData")
+simmr_vol_graph
+
+
+
+### Grid arrange all figures -------------------
+
+library(gridExtra)
+grid.arrange(total_vols_graph, simmr_vol_graph,rugosity_graph, nhsp.graph, ncol = 2)
 
 species_Vols_graph
 rugosity_graph
 
 rugosity_graph
 nhsp.graph
+
+
 
 
 ### old Metrics ----------------------------
@@ -1094,6 +1096,75 @@ axis_slice_graph = axis_slices %>%
 
 
 axis_slice_graph 
+
+
+# set up matrix for filtering within the for loop
+## This wont be backtransformed because I don't want to influence the dist with the natural variation in baseline
+z.mod = points.frame %>% 
+  group_by(post, x1_grid, x2_grid, community) %>%
+  summarize(total_volume = sum(z_string)) %>%
+  ungroup() %>%
+  select(total_volume, x1_grid, x2_grid, post, community) %>%
+      rename(xax = x1_grid, 
+             yax = x2_grid)
+
+## for loop
+dist_list = list()
+dist_list1 = list()
+options(expressions = 5000) 
+for(i in 1:length(unique(z.mod$community))){
+  for(h in 1:length(unique(z.mod$post))){
+    
+    
+    
+    z = z.mod  %>%
+      filter(community == i, post == h) %>%
+      pivot_wider(values_from = total_volume, names_from = xax) %>%
+      column_to_rownames(var = "yax") %>%
+      mutate_all(~ ifelse(is.na(.), 0, .))
+    
+    # Apply the function to your Z matrix
+    local_maxima <- find_local_maxima(z) 
+    # Get coordinates of local maxima
+    maxima_coords <- which(local_maxima, arr.ind = TRUE) ## 
+    max = data.frame(xax = (z.mod$xax %>% unique())[maxima_coords[,1]], 
+                     yax = (z.mod$yax %>% unique())[maxima_coords[,2]], 
+                     max = "max") 
+    
+    
+    max.frame.joined = left_join(z.mod, max)
+    
+    
+    
+    
+    dist_list1[[h]] =  dist(max %>% select(-max), method = "euclidean") %>% as.matrix() %>%
+      as.data.frame() %>%
+      rownames_to_column(., var = "row_index") %>%
+      pivot_longer(1:length(.[,1])+1, names_to = "col_index", values_to = "values") %>%
+      summarize(mean = mean(values), sd = sd(values))
+  }
+  
+  dist_list[[i]] = dist_list1
+}  
+
+dist_matrix = data.frame(value = c(unlist(dist_list[[1]]), unlist(dist_list[[2]]), unlist(dist_list[[3]]))) %>% 
+  mutate(metric = rep(c("mean", "sd"), n.posts*3),
+         post = rep(rep(1:n.posts, each = 2), 3), 
+         community= rep(c(1,2, 3), each = (n.posts*2 )))
+
+## Distance between all local maxima in the landscape
+
+dist_matrix %>% 
+  ggplot(aes(x = as.factor(community), y = value, fill = as.factor(community))) + 
+  geom_boxplot() + 
+  facet_wrap(~metric) +
+  theme_minimal(base_size = 14) + 
+  theme(legend.position = "none") +
+  ylab("Distance between maxima") + xlab("Period")  +
+  labs(col = "Period") +
+  scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
+  scale_fill_manual( values = wes_palette("Darjeeling1", type = "discrete", n = 3),labels = c("1" = "Pre","2" = "Early", "3" = "Late")) 
+
 
 
 

@@ -207,7 +207,7 @@ simmr_vol = species_vols %>%
                              filter(type == "ben",
                                     quantile == "50"), by = c("species" = "CODE", "community"))
 
-
+save(simmr_vol, file = "Data/VaryingIsotopesData/simmr_vol.RData")
 
 ## Here I'm estimmating the weighted average of benthic contibution to the food web
 
@@ -218,7 +218,7 @@ simmr_vol %>%
 
 
 
-simmr_vol %>%
+simmr_vol_graph = simmr_vol %>%
 #  filter(species != "SMB") %>%
   mutate(weighted.avg = total_vol * value) %>%
   group_by(post, community) %>%
@@ -230,8 +230,8 @@ simmr_vol %>%
   mutate(benthic.contr = wa / total_web_vol) %>%
   ggplot(aes(x = as.factor(community), y = 100*benthic.contr, col = as.factor(community))) +
   stat_summary(
-    fun.data = bayes_cri,   # Use Bayesian credible interval function
-    geom = "pointrange"
+    fun.data = quantiles_95,   # Use Bayesian credible interval function
+    geom = "boxplot"
   )  +
   theme_minimal(base_size = 12) +
   ylab("Benthic Contribution (%)") +
@@ -244,7 +244,7 @@ simmr_vol %>%
   labels = c("1" = "P.R.", "2" = "P.I.", "3" = "M.O.")) +
   theme(legend.position = "non")
 
-simmr_vol_graph = simmr_vol %>%
+simmr_vol %>%
 #  filter(species != "SMB") %>%
   mutate(weighted.avg = total_vol * value) %>%
   group_by(post, community) %>%
@@ -266,8 +266,8 @@ simmr_vol_graph = simmr_vol %>%
 save(simmr_vol_graph, file = "Data/VaryingIsotopesData/simmr_vol_graph.RData")  
 
 
-
-
+load(file = "Data/VaryingIsotopesData/simmr_vol_graph.RData")
+simmr_vol_graph
 
 
 
