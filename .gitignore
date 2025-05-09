@@ -7,3 +7,6 @@
 *.Rmd
 *.html
 *.xlsx
+*.pdf
+Landscapes/old_delete/*
+Landscapes/VaryingIsotopes/old_delete/*
