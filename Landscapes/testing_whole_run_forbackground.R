@@ -5,7 +5,7 @@ set.seed(123)
 ## Load in libraries
 
 library(raster)
-
+library(mvtnorm)
 library(MASS) # for mvrnorm
 
 library(tidyverse)
