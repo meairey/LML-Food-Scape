@@ -58,13 +58,7 @@ species.pre = c("BB", "CC","CS","PS","SMB","SS","WS") #7 long
 
 species.late =  c( "CC","CS","LT","MM","PS","RS","SMB","SS","WS") # 9 long
 
-## Backtrasforming values for plotting
 
-load("Data/VaryingIsotopesData/EarlyData/backtrace_early.RData")
-load("Data/VaryingIsotopesData/LateData/BacktraceTrace.RData")
-load("Data/VaryingIsotopesData/PreData/backtrace_pre.RData")
-backtrace.pre = backtrace.early
-backtrace.pre$community =1
 
 back.trace = rbind(backtrace.pre,backtrace.early, backtrace.late)
 
