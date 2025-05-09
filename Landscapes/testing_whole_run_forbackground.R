@@ -172,7 +172,7 @@ z_func <- function(X1, X2, mu, sigma) {
 ## Run the loop and time it ------------------------------------------------
 
 
-points.gen = points.gen %>% filter(post %in% c(1:2))
+#points.gen = points.gen %>% filter(post %in% c(1:1000))
 
 execution_time <- system.time({
   
@@ -378,4 +378,7 @@ rugosity.summary %>%
 total.vol %>% 
   filter(species == "SMB")
 
+remove(total.vol)
+load(file = "Data/VaryingIsotopesData/total.vol.frame.RData")
+total.vol
 
