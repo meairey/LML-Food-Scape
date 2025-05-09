@@ -1,3 +1,4 @@
+setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape")
 ## List to fill
 # Set random seed for reproducibility
 set.seed(123)
@@ -133,7 +134,7 @@ rugosity.list = list()
 n_points = 500000
 #n_points = 100
 grid_size = .01
-setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape")
+
 load("Data/VaryingIsotopesData/pointsgen.RData")
 
 ## script setup
