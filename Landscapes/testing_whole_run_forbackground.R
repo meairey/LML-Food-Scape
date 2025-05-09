@@ -167,7 +167,8 @@ z_func <- function(X1, X2, mu, sigma) {
 
 
 
-
+points.gen = points.gen %>%
+  filter(post %in% c(1:500))
 
 ## Run the loop and time it ------------------------------------------------
 
