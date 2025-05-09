@@ -60,8 +60,6 @@ species.late =  c( "CC","CS","LT","MM","PS","RS","SMB","SS","WS") # 9 long
 
 
 
-back.trace = rbind(backtrace.pre,backtrace.early, backtrace.late)
-
 ## Legend for joining together the posteriors - includes group/community combinations
 legend = data.frame(group = as.character(c(1:9)), 
                     A = c(species.pre, rep("NA", 2)),
