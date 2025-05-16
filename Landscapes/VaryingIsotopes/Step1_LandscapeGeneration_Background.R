@@ -1,12 +1,14 @@
-setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape")
+#setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape")
 ## List to fill
 # Set random seed for reproducibility
 set.seed(123)
 ## Load in libraries
+library(terra)
 library(raster)
 library(mvtnorm)
 library(MASS) # for mvrnorm
 library(tidyverse)
+library(geodiv)
 ## Source and Functions
 
 # Functions ---------------------
@@ -56,6 +58,7 @@ z_func <- function(X1, X2, mu, sigma) {
   
   return(z)
 }
+
 
 
 
@@ -143,8 +146,9 @@ total.vol.list = list() ## Added this in to make a list of total volumes
 nhsp.list = list()
 rugosity.list = list()
 n_points = 500000
-#n_points = 100
+#n_points = 10000
 grid_size = .01
+
 
 load("Data/VaryingIsotopesData/pointsgen.RData")
 
@@ -170,20 +174,41 @@ threshold <- qchisq(confidence_level, df = 2) # df = 2 for 2D
 
 
 points.gen = points.gen %>%
-  filter(post %in% c(1:100))
+  filter(post %in% c(1:500))
 
 ## Run the loop and time it ------------------------------------------------
+# Delete the file if it exists
+#if (file.exists("trying.csv")) file.remove("trying.csv")
+try.csv = data.frame(comm = 99, pos = 99,
+                     sdrtrough = 99,
+                     sfd_data = 99,
+                     sds_dat = 99,
+                     scl_dat = 99)
+write.table(try.csv, file = "trying.csv", row.names = FALSE, sep = ",")
 
+
+read.table(file = "trying.csv", sep = ",", header = TRUE)
+
+# Example global grid bounds
+x_range <- c(-cord_max, cord_max)
+y_range <- c(-cord_max, cord_max)
+grid_size <- 0.01
+
+x_seq <- seq(x_range[1], x_range[2], by = grid_size)
+y_seq <- seq(y_range[1], y_range[2], by = grid_size)
+global_grid <- expand.grid(x1 = x_seq, y1 = y_seq)
 
 #points.gen = points.gen %>% filter(post %in% c(1:1000))
 
 execution_time <- system.time({
   
 for(h in 1:length(unique(points.gen$post))){
+  print(paste("posterior", h)) 
+
+  points.gen.post = points.gen %>% filter(post == h)
   
-points.gen.post = points.gen %>% filter(post == h)
-  
-points.frame = NULL
+  points.frame = NULL
+  points.list = list()
   
   for(i in 1:dim(points.gen.post)[1]){
     ## Create the subset of the posterior your're going to use
@@ -198,9 +223,7 @@ points.frame = NULL
     
     inv_sigma <- solve(sigma)
     
-    # Generate random points from the multivariate normal distribution
-  
-    points <- mvrnorm(n = n_points, mu = mu, Sigma = sigma)
+    # Generate points in the ellipse
   
     
     # Compute ellipse area
@@ -209,30 +232,32 @@ points.frame = NULL
     b <- sqrt(eigen_values[2]) * threshold
     ellipse_area <- pi * a * b
     
+    ## Generating a grid
     
-    # Calculate the Mahalanobis distance for each point
-    mahalanobis_dist <- apply(points, 1, function(pt) t(pt - mu) %*% inv_sigma %*% (pt - mu))
+
+    mahal = mahalanobis(global_grid, center = mu, cov = sigma)
+
+
+    
+
     
     # Keep only points within the ellipse
-    points_in_ellipse <- points[mahalanobis_dist <= threshold, ] %>% 
-      as.data.frame() %>%
-    mutate(x1_grid = round(V1 / grid_size) * grid_size,
-           x2_grid = round(V2 / grid_size) * grid_size) %>% 
-      select(x1_grid, x2_grid) %>% unique() 
+    points_in_ellipse = global_grid[mahal <= threshold, ] %>% 
+      as.data.frame() 
       
-      
+    points_in_ellipse$z = apply(points_in_ellipse, 1, function(point) z_func(point[1], point[2], mu, sigma))
     
-    z <- apply(points_in_ellipse, 1, function(point) z_func(point[1], point[2], mu, sigma))
-    
-    
+  
     
     ellipse_points <- data.frame(points_in_ellipse) %>%
       mutate(lookup  = subset$lookup,
             mean_area = ellipse_area) %>%
      mutate(z_string = z)
     
+
     
     points.list[[i]] = ellipse_points 
+    
     
     
     
@@ -241,7 +266,6 @@ points.frame = NULL
   
   ## Calculate metrics per posterior draw
 
-  grid_size = .01 ## Grid size 
   
   ## Points frame to work with per posterior draw
   points.frame <- bind_rows(points.list)%>% 
@@ -256,8 +280,7 @@ points.frame = NULL
     mutate(z_string = z_string * tot_abund * (mass.avg ^ .75)) %>%
     ungroup()
   
-points.frame %>% select(community, group,species) %>%
-  unique()
+
   
   
   ## Total Volume Metric - can be split out later
@@ -278,65 +301,85 @@ points.frame %>% select(community, group,species) %>%
   ungroup() %>% 
   group_by(community, post) %>%
   arrange(post, -z_string) %>%
-  mutate(dist = sqrt((x1_grid - lag(x1_grid))^2 + (x2_grid - lag(x2_grid))^2)) %>%
+  mutate(dist = sqrt((x1 - lag(x1))^2 + (y1 - lag(y1))^2)) %>%
   select(dist,everything()) %>%
   summarize(mean = mean(dist, na.rm = T), sd = sd(dist, na.rm = T)) %>%
   pivot_longer(mean:sd, names_to = "metric", values_to = "values")
+  
+  
+  
+  
+  
   
   ## Rugosity
   
   
   z.mod = points.frame %>% 
-    filter(species != "SMB") %>%
-  group_by(post, x1_grid, x2_grid, community) %>%
-  summarize(total_volume = sum(z_string)) %>%
-  ungroup() %>%
-  select(total_volume, x1_grid, x2_grid, post, community) %>%
-      rename(xax = x1_grid, 
-             yax = x2_grid)
+    #filter(species != "SMB") %>%
+    group_by(post, x1, y1, community) %>%
+    summarize(total_volume = sum(z_string)) %>%
+    ungroup() %>%
+    select(total_volume, x1, y1, post, community) %>%
+    rename(xax = x1, 
+           yax = y1)
   
-  
-    
 
   
-  cell_size = grid_size
-  
-  
+
   
   # Calculate the planar area for each cell
-
-
-
+  
+  
+  
   rug.community = list()
   for(j in 1:length(unique(z.mod$community))){
 
-    planar_area <- cell_size^2
+
+    elevation_matrix = z.mod %>%
+      mutate(total_volume = (total_volume)) %>%
+      filter(community == j, post ==h) %>%
+      pivot_wider(values_from = total_volume, names_from = xax) %>%
+      
+      arrange(desc(yax)) %>%
+      column_to_rownames(var = "yax") %>%
+      #mutate(across(everything(), ~ ifelse(is.na(.), rnorm(sum(is.na(.)), mean = 0, sd = 1), .))) %>%
+      #mutate(across(everything(), ~ ifelse(is.na(.), 0, .))) %>%
+      select(-post, -community) %>%
+      as.matrix()
     
-      
-      elevation_matrix = z.mod %>%
-        mutate(total_volume = scale(total_volume)) %>%
-        filter(community == j, post ==h) %>%
-        pivot_wider(values_from = total_volume, names_from = xax) %>%
-        column_to_rownames(var = "yax") %>%
-        mutate_all(~ ifelse(is.na(.), 0, .)) %>% 
-        select(-post, -community) %>%
-        as.matrix()
-      
+    ## Thinking about interpolting to fill in the gaps
+    
 
-      rug.community[[j]] = data.frame(community = j, post = h,
-                                      rough = sa(elevation_matrix), ## general surface roughness
-                                      sdrtrough =  sdr(elevation_matrix), ## ! surface area -oughness  energetic complexity r
-                                      point10 = s10z(elevation_matrix), ## ten point height
-                                      scl_dat = scl(elevation_matrix)[1], ## correlation length
-                                      sfd_dat = sfd(elevation_matrix), ## ! 3d fractal dimension - spatian richness of trophic strategies
-                                      sds_dat = sds(elevation_matrix)) ## functionally distint peaks
-   
-    }
+    
+    
+    
+    r <- raster(elevation_matrix)
+
+    sdrtrout = sdr(r)
+    sa_dat = sa(r) ## 137
+    #sfd_dat = sfd(r)
+    sds_dat = sds(elevation_matrix) ## functionally distinct peaks
+    #scl_dat = scl(rast(elevation_matrix))[1] ## works with zeros does not work with the raster
+    s10z_dat = s10z(elevation_matrix)
+    rug.community[[j]] = data.frame(comm = j, pos = h,
+                                    sdrtrough = sdrtrout, ## surface complexity
+                                   # sfd_data = sfd_dat,
+                                    sds_dat = sds_dat, ## functionally distinct peaks
+                                   # scl_dat = scl_dat, ## Correlation length
+                                     s10z_dat = s10z_dat)
+
+    
+  }
   
-    rugosity.list[[h]] = bind_rows(rug.community)
+  rugosity.list[[h]] = bind_rows(rug.community)
+  write.table(rugosity.list[[h]], file = "trying.csv", sep = ",", row.names = FALSE,
+             col.names = !file.exists("trying.csv"), append = TRUE)
+  
+  
 
   
-print(h/length(unique(points.gen$post))*100)
+ 
+  print(h/length(unique(points.gen$post))*100)
     
   }
 
@@ -349,20 +392,15 @@ rugosity.summary = bind_rows(rugosity.list)
 
 })
 
+## Took this out to figure out why this is crashing
 
-remove(rugosity.summary)
-remove(rugosity.list)
-rugosity.list = list()
-
-rugosity.list[[10]] %>%
-  ggplot(aes(x = as.factor(community), y = scl_dat)) + 
-  geom_boxplot()
-
-z.mod %>%
-        mutate(total_volume = scale(total_volume)) %>%
-  filter(community == 1, post == h) %>%
-  ggplot(aes(x = xax, y = yax, col= total_volume)) + 
-  geom_point()
+rug.community[[j]] = data.frame(community = j, post = h,
+                                #rough = sa(elevation_matrix), ## general surface roughness
+                                sdrtrough =  sdr(elevation_matrix), ## ! surface area -oughness  energetic complexity r
+                                #point10 = s10z(elevation_matrix), ## ten point height
+                                # scl_dat = scl(elevation_matrix)[1], ## correlation length
+                                sfd_dat = sfd(elevation_matrix), ## ! 3d fractal dimension - spatian richness of trophic strategies
+                                sds_dat = sds(elevation_matrix)) ## functionally distinct peaks
 
 
 
@@ -372,37 +410,87 @@ print(execution_time)
 ## 482 seconds for 2 posterior draws 
 
 ((execution_time/h * 1000)/60/60)[3] /24
+bayes_cri <- function(x) {
+  data.frame(
+    y = mean(x),  # Mean of posterior samples
+    ymin = quantile(x, 0.025),  # 2.5% quantile (Lower bound)
+    ymax = quantile(x, 0.975)   # 97.5% quantile (Upper bound)
+  )
+}
+
+
 
 
 save(total.vol,file = "Data/VaryingIsotopesData/total.vol.frame.RData")
 save(nhsp, file = "Data/VaryingIsotopesData/nhsp.RData")
 save(rugosity.summary, file = "Data/VaryingIsotopesData/rugosity.summary.RData")
 
-total.vol %>% group_by(community) %>%
+total.vol %>% group_by(community, post) %>%
   summarize(total_vol = sum(total_vol)) %>%
+
   ggplot(aes(x = community, y = total_vol)) + 
-  geom_boxplot()
+  geom_boxplot() +
+  scale_y_log10()
 
 nhsp %>% 
   ggplot(aes(x = community, y = values)) + 
   geom_boxplot() + 
   facet_wrap(~metric)
+nhsp$post %>% unique()
 
-rugosity.summary %>%
- # filter(post < 6) %>%
-  ggplot(aes(x = as.factor(community), y = sdrtrough)) + 
-  geom_boxplot()
-
-rugosity.summary %>% 
- # filter(post < 6) %>%
-  ggplot(aes(x = as.factor(community), y = point10)) + 
-  geom_boxplot()
 
 
 rugosity.summary %>%
  # filter(post < 6) %>%
-  ggplot(aes(x = as.factor(community), y = rough)) + 
-  geom_boxplot()
+  ggplot(aes(x = as.factor(comm), y = sds_dat))+
+  stat_summary(
+    fun.data = bayes_cri,   # Use Bayesian credible interval function
+    geom = "pointrange"
+  ) 
+
+
+
+rugosity.summary %>%
+  # filter(post < 6) %>%
+  ggplot(aes(x = as.factor(comm), y = sdrtrough))+
+  stat_summary(
+    fun.data = bayes_cri,   # Use Bayesian credible interval function
+    geom = "pointrange"
+  ) 
+
+
+
+sds1 = rugosity.summary %>%
+  filter(pos %in% c(1:100)) %>%
+  filter(comm == 1)
+sds2 = rugosity.summary %>%
+  filter(pos %in% c(1:100)) %>%
+  filter(comm == 2)
+sds3 = rugosity.summary %>%
+  filter(pos %in% c(1:100)) %>%
+  filter(comm == 3)
+
+mean(sds1$sdrtrough > sds3$sdrtrough)
+mean(sds1$sdrtrough > sds2$sdrtrough)
+mean(sds2$sdrtrough > sds3$sdrtrough)
+
+
+mean(sds1$sds_dat > sds3$sds_dat)
+mean(sds1$sds_dat > sds2$sds_dat)
+
+
+mean(sds1$s10z_dat > sds2$s10z_dat) ## significant
+
+
+
+
+rugosity.summary %>%
+
+  ggplot(aes(x = as.factor(comm), y = s10z_dat)) +
+  stat_summary(
+    fun.data = bayes_cri,   # Use Bayesian credible interval function
+    geom = "pointrange"
+  ) 
 
 
 rugosity.summary %>% 
@@ -449,3 +537,4 @@ roughness <- sa(elevation_matrix)
 
 st_rough = sdr(elevation_matrix)
 s10z(elevation_matrix)
+
