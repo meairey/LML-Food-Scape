@@ -1,44 +1,75 @@
 model {
 
-for(s in 1:species){
-  for(i in 1:sites) {
+
+for(s in 1:species){ # Species Loop
+
+  for(i in 1:sites) { ## site loop
+  ## Each site is now a replicate, and all sites are replicate of the lake... 
     
     # Binomial model
-    N[i,s] ~ dpois(lambda[i,s])
+    N[i,s] ~ dpois(lambda[i,s]) ## observation model
 
-    # Log-linear model for abundance with habitat-specific intercept
-    log(lambda[i,s]) = beta0[hab[i],s] + beta1[hab[i],s]*wood[i]  + e.hab[i,s] + shoreline_length[i]
+    # Log-linear model for abundance with habitat-specific intercept 
+    log(lambda[i,s]) = beta0[hab[i],s] + beta1[hab[i],s]*wood[i] + e.hab[i,s] + (shoreline_length[i]/mean_length) ## could have two varience paremeters one for abundance rates and one for detection probabilities ## Add in the offset here (make sure you use the logged distance because I'm using log lambda - needs coefficient of 1)
 
     # Observation model
-
-    logit(p[i,s]) = alpha0[s] + alpha1[s]*ice_off  + e.detect[i,s]
-
+    for(j in 1:year) {
+        logit(p[i,j,s]) = alpha0[j,s] + alpha1[j,s]*ice_off[j] + e.detect[i,s] ## (detection variance parameter from below)
       for(k in 1:replicates) {
-        C[i, k, s] ~ dbin(p[i,s], N[i,s])
+        C[i, k, j, s] ~ dbin(p[i,j,s], N[i,s])
         
-      
+      }
     }
   }
 
+
+
+    ## variance parameter from above needs its own prior (inverse)
+  for(i in 1:sites){
+      e.detect[i,s] ~ dnorm(0, tau.detect[s])
+      e.hab[i,s] ~ dnorm(0, tau.hab[s])
+      
+  }
   ## Priors
 
+
   # Prior for beta0, defined for each habitat type - for abundances
-  for(k in 1:num_hab) {
+  for(k in 1:num_hab) { ## start beta priors habitat loop
     beta0[k,s] ~ dunif(-10, 10) ## Prior for abundance intercept - which gets modified by habitat
     beta1[k,s] ~ dunif(-10,10) ## Prior for abundance slope which gets modified by presence of wood
-  }
+  } ## end beta priors habitat loop
 
   # Prior for alpha0 and alpha1 for each replicate/time - for detection
+for(k in 1:year){ ## start alpha year loop
+   alpha0[k,s] ~  dunif(-10, 10) 
+   alpha1[k,s] ~ dunif(-10, 10) 
+ } ## End alpha year loop
+ 
+## Prior for e... parameters
 
-   alpha0[s] ~  dunif(-10, 10)
-   alpha1[s] ~ dunif(-10, 10)
+  tau.hab[s] ~ dgamma(0.001, 0.001) # hyperprior for e.hab 
+  tau.detect[s] ~ dgamma(0.001, 0.001) # hyperprior for e.detect
 
 
 
+N_total[s] = sum(N[,s]) ## summing up total abunadnce for each species in the lake
 
-
-
- }
+} ## End species loop
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
 
 ## Priors for mass of taxa

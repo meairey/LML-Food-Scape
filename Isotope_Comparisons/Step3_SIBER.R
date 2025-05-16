@@ -133,11 +133,11 @@ posterior <- siberMVN(siber.example, parms, priors) ## Generates posterior distr
 
 overlap_list = list() 
 
-
+## 100 posteriors takes about 2hrs
 
 for(h in 1:length(unique(data_siber$community))){
   
-  overlap_list[[h]] = overlap(data_siber,h,30, posterior) %>% as.data.frame()
+  overlap_list[[h]] = overlap(data_siber,h, 100, posterior) %>% as.data.frame()
 }
 
 # Code to reduce list to matrix 
@@ -200,6 +200,7 @@ df.long %>% filter(!grepl("SMB", sorted_comparison)) %>%
   geom_boxplot() + 
   theme_minimal() + 
   ylab("Average Pairwise Overlap")
+
 
 overlap.df = df.long
 save(overlap.df, file = "Data/IsotopeComparisons/overlap.df.RData")
@@ -278,11 +279,6 @@ save(ellipse.area, file = "Data/IsotopeComparisons/EllipseArea.RData")
 
 load("Data/IsotopeComparisons/EllipseArea.RData")
 
-ellipse.area %>% ggplot(aes(x = group, y = area, fill = community)) + 
-  geom_boxplot()
-
-
-
 med_area = ellipse.area %>% 
   filter(relative_area >= quantile(relative_area, probs = 0.025) & 
            relative_area <= quantile(relative_area, probs = 0.975)) %>% 
@@ -308,7 +304,7 @@ posterior
 source("../thermal-guild-otolith/isotope_functions_update.R")
 
 ### Ontogenetic shifts in bass?
-data %>% 
+full_corrected%>% 
   unique() %>%
   filter(TAXON == "SMB") %>%
   bind_rows(.,data) %>%
@@ -316,8 +312,10 @@ data %>%
   group_by(ITEM_N, ISO_FISH_N) %>%
   mutate(count = c(1:length(TAXON))) %>%
 
-  select(count, TAXON, LENGTH, everything()) %>%
+  select(count, period,TAXON, LENGTH, everything()) %>%
+  select(TAXON, LENGTH, D13C, D13C_c, D15N, D15N_c) %>%
   ungroup() %>%
+  na.omit() %>%
 
   mutate(TAXON = case_when(TAXON == "SMB" & LENGTH >= 100 & LENGTH < 200 & count == 2 ~ "SMB2" ,
                            TAXON == "SMB" & LENGTH < 100 & count == 2 ~ "SMB1" ,
@@ -326,9 +324,9 @@ data %>%
                            TAXON != "SMB" ~ TAXON)) %>%
   group_by(TAXON, period) %>%
   filter(TAXON != "NA") %>%
-  select(D13C, D15N, period, TAXON)  %>%
-  rename(iso1 = D13C, 
-         iso2 = D15N, 
+  select(D13C_c, D15N_c, period, TAXON)  %>%
+  rename(iso1 = D13C_c, 
+         iso2 = D15N_c, 
          community = period, 
          group = TAXON) %>%
   ungroup() %>%
@@ -336,4 +334,20 @@ data %>%
   ggplot(aes(x = iso1, y = iso2, col = group)) + 
   geom_point() + 
   stat_ellipse(level = .4) +
-  facet_wrap(~community)
+  facet_wrap(~community, scales = ) +
+  theme_minimal(base_size = 13)
+
+## Quantifying SMB overlap
+
+
+df %>% 
+  filter(grepl("SMB",group1), 
+         grepl("SMB", group2)) %>%
+  filter(group1 != "SMB",
+         group2 != "SMB") %>%
+  group_by(Community, sorted_comparison) %>%
+  na.omit() %>%
+  summarize(mean_overlap = quantiles_95(Values)[3],
+            lower = quantiles_95(Values)[1],
+            upper = quantiles_95(Values)[5])
+

@@ -1,7 +1,7 @@
 ## Set up functions and load in critical data for visualizations
 library(tidyverse)
 library(viridis)
-
+library(wesanderson)
 #### Quantile function for plotting credible intervals
 quantiles_95 <- function(x) {
   r <- quantile(x, probs=c(0.025, 0.25, 0.5, 0.75, 0.975))
@@ -35,7 +35,7 @@ load("Data/Legend.col.RData") ## Has colors for plotting individuals species
 
 legend_sci = read.csv("Data/IsotopeComparisons/legend.csv")
 
-colnames(legend_sci)
+
 
 
 legend = legend %>% left_join(legend_sci, by = c("CODE" = "code"))
@@ -63,65 +63,26 @@ suc = data.frame(CODE = sort(unique(legend$CODE)),
                          "na" )) %>% ## WS
   filter(CODE != "SMB")
 
-## Differences in body size between the two sampling periods
-
-## Note that RWF lengths are messed up and I have to see why theyre not getting found in the fish_measurement csv
-full %>%
-  ggplot(aes(x = TAXON, y = log(LENGTH), fill = period,
-             col = period)) + 
-  geom_boxplot() + 
-  theme_minimal() + geom_jitter()
-
-full %>%
-  filter(TAXON == "RWF")
-
-## Do the mean lengths during each period match the mean length of the isotope fish
+su_order <- c("A. nebulosus", "C. commersonii","L. cornutus", "P. cylindraceum", "S. atromaculatus", "S. fontinalis", 
+              "C. cognatus", "L. gibbosus", "O. mordax", "S. namaycush", "S. salar","U. limi")
 
 
 
-
-## Trends in length X
-full %>% 
-  ggplot(aes(x = (LENGTH), y = D13C, col = TAXON)) +
-  geom_point() + 
-  geom_smooth(method = "lm", se = F) + 
-  theme_minimal() +
-  scale_x_log10() +
-  facet_wrap(~period)
-
-
-## Trends in length Y
-full %>% 
-  ggplot(aes(x = (LENGTH), y = D15N, col = TAXON)) +
-  geom_point() + 
-  geom_smooth(method = "lm", se = F) + 
-  theme_minimal() +
-  scale_x_log10() +
-  facet_wrap(~period)
+italic_labels = c(expression(italic(A.~nebulosus)),
+                  expression(italic(C.~commersonii)),
+                  expression(italic(L.~cornutus)), 
+                  expression(italic(P.~cylindraceum)),
+                  expression(italic(S.~atromaculatus)),
+                  expression(italic(S.~fontinalis)),
+                  expression(italic(C.~cognatus)),
+                  expression(italic(L.~gibbosus)),
+                  expression(italic(O.~mordax)),
+                  expression(italic(S.~namaycush)),
+                  expression(italic(S.~salar)),
+                  expression(italic(U.~limi))
+                  )
 
 
-
-
-## View baselines Z
-
-baselines %>% 
-  ggplot(aes(x = (as.factor(community)), y = mean_d15N, col = GROUP , group = GROUP)) + 
-  geom_point() + geom_line() +
-  theme_minimal() +
-  ylab("d15N") + 
-  xlab("Community")
-
-
-
-## Summary of fish in webs
-
-summary = full %>% 
-  select(-ISO_YSAMP_N) %>%
-  unique() %>%
-  group_by(period, TAXON) %>%
-  summarize(count = n()) %>%
-  pivot_wider(names_from = period, values_from = count) %>%
-  mutate_all(~ ifelse(is.na(.), 0, .))
 
 #write.csv(summary, file = "Data/IsotopeComparisons/Clean/summary.csv")
 
@@ -142,19 +103,23 @@ full_corrected %>%
   facet_wrap(~TAXON, scales = "free")
 
 
-
+## Overlap between different size classes of SMB in LML between the historical and modern periods
 full_corrected %>% 
   mutate(TAXON = case_when(TAXON == "SMB" & LENGTH < 100 ~ "SMB1",
-                             TAXON == "SMB" & LENGTH >= 100 ~ "SMB2",
+                             
+                           TAXON == "SMB" & LENGTH >= 100 & LENGTH < 200 ~ "SMB2",
+                           TAXON == "SMB" & LENGTH >= 200 ~ "SMB3",
                              TAXON != "SMB" ~ TAXON)) %>%
+  filter(TAXON %in%  c("SMB1", "SMB2", "SMB3")) %>%
   filter(is.na(TAXON) != T) %>%
   #filter(group %nin%c("NRD", "RWF","BND","BB","LLS", "ST")) %>%
   ggplot(aes(x = D13C_c, y = D15N_c, col = TAXON)) + geom_point() + 
   stat_ellipse(level = .4) +
-  facet_wrap(~period) + 
+  facet_wrap(~period, labeller = labeller(period = c("early" = "Historical", "late" = "Modern"))) + 
   ylab("Trophic Position") +
   xlab("D13C (corrected)") + 
-  theme_minimal() 
+  theme_minimal(base_size = 18) +
+  scale_color_manual("Age Class",values = wes_palette("Darjeeling1", n = 3), labels = c("Juvenile", "Maturing", "Adult"))
 
 
 ### Niche Area - Overview Graph
@@ -173,116 +138,49 @@ med_area %>%
   theme(legend.position = "none") +
   scale_x_log10()
 
-### Niche area -- summary of credible differences between the two periods
-med_area %>%
-  ungroup %>%
-  select(group, post_n, period, med_area) %>%
-  unique() %>% 
-  #filter(period == "early", post_n == 1)
-  pivot_wider(names_from = period, values_from = med_area)%>%
-  mutate(difference = late - early) %>%
-  group_by(group) %>%
-  summarize(mean = mean(difference, na.rm = T), 
-            low =  quantile(difference,.025, na.rm = T),
-            high = quantile(difference,.975, na.rm = T)) %>%
-  left_join(legend) %>%
- # left_join(legend_sci, by = c("CODE" = "code")) %>%
-  filter(CODE != "SMB") %>% 
-  select(scientific, mean, low, high) %>%
-  unique() %>%
-  mutate(sig = case_when(sign(low) == sign(high)~"*", sign(low) != sign(high) ~ NA)) %>%
-  ggplot(aes(x = "Credible Difference", y = scientific, col = mean, shape = sig)) + 
-  geom_point(size = 5) + 
-  theme_minimal(base_size = 14) +
-  scale_color_viridis_c() +
-  theme(axis.title = element_blank()) +
-  guides(shape = "none") + 
-  labs(col = expression(Delta*"SEAc"))
 
 
-## Calculating difference in SEAc between periods
-med_area %>%
-  #filter(!grepl("SMB", CODE)) %>%
-  ## Filter for comparisons in both early and late  
-  filter(CODE %in% c("PS", "MM","CS","CC", "SS", "RS","LT")) %>%
-  group_by(community,period, post_n) %>%
-  summarize(mean_area = mean(med_area)) %>%
-  ungroup() %>% 
-  select(-community) %>%
-  pivot_wider(names_from = period, values_from = mean_area) %>%
-  
-  mutate(difference = late - early) %>%
-  summarize(mean = mean(difference, na.rm = T), 
-            low =  quantile(difference,.025, na.rm = T),
-            high = quantile(difference,.975, na.rm = T)) 
-  ggplot(aes(y = (mean_area), x = period, fill = period)) + 
- # stat_summary(fun.data=quantiles_95, geom="boxplot", aes(width=0.4)) +
-  #geom_boxplot()+
-  theme_minimal(base_size = 14) + 
-  xlab("Niche Area") +
-  labs(y = NULL)
+
+
   
   
 ## Comparing niche charactreistics to species success
   
 
 
-med_area %>%
-  filter(CODE %nin% c("SMB", "SMB1", "SMB2")) %>%
-  left_join(suc) %>%
-  group_by(CODE, post_n, suc) %>%
-  summarize(m_s = mean(med_area)) %>%
-  ungroup() %>% 
-  group_by(post_n, suc) %>%
-  summarize(m = mean(m_s)) %>%
-  ungroup() %>% pivot_wider(names_from = suc, values_from = m) %>%
-  mutate(dif = p - ne) %>%
-  summarize(mean = mean(dif) , lower = quantile(dif, 0.025), upper = quantile(dif, .975))
-
-
-
-m_species = med_area %>%
-  #filter(CODE %in% c("PS", "MM","CS","CC", "SS", "RS","LT")) %>%
+med_area.1 = med_area %>% 
   filter(CODE %nin% c("SMB", "SMB1", "SMB2", "SMB3")) %>%
   left_join(suc) %>%
-  filter(suc != "na") %>%
-  group_by( suc, CODE, community) %>%
-  mutate(m = mean(med_area)) %>%
+ #filter(suc != "na")%>%
   unite("ID", c(suc, community), remove = F) %>%
+  ungroup( ) %>%
+  select(ID, post_n, med_area, CODE, color) %>%
+  group_by(ID, CODE, color) %>%
+  sample_n(1000) %>%
+  mutate(post_index = c(1:1000))
+
+m_species = med_area.1 %>%
+  ungroup() %>%
+  group_by( ID, CODE, color) %>%
+  mutate(m = mean(med_area)) %>%
+
   left_join(legend %>%
               select(CODE, scientific, color) %>%
               unique(), by = c("CODE")) %>%
   #mutate(CODE = factor(CODE, levels = c("BB","CC","CS","RWF","ST","LT","MM","PS","RS","SS"))) %>%
   
-  mutate(scientific = factor(scientific,levels = c("A. nebulosus", "S. atromaculatus","L. cornutus",
-                                                   "P. cylindraceum", "S. fontinalis",  "S. namaycush",
-                                                   "U. limi" ,"L. gibbosus", "O. mordax","C. cognatus" 
-                                                   )))
+  mutate(scientific = factor(scientific,levels = su_order))
 
-
-italic_labels = c(expression(italic(A.~nebulosus)), 
-                  expression(italic(S.~atromaculatus)),
-                  expression(italic(L.~cornutus)), 
-                  expression(italic(P.~cylindraceum)),
-                  expression(italic(S.~fontinalis)), expression(italic(S.~namaycush)),
-                  expression(italic(U.~limi)), expression(italic(L.~gibbosus)),
-                  expression(italic(O.~mordax)),
-                  expression(italic(C.~cognatus)))
-m_quant = med_area %>%
-  #filter(CODE %in% c("PS", "MM","CS","CC", "SS", "RS","LT")) %>%
-  filter(CODE %nin% c("SMB", "SMB1", "SMB2", "SMB3")) %>%
-  left_join(suc) %>%
-  filter(suc != "na") %>%
+m_quant = med_area.1 %>%
   ungroup() %>%
-  group_by( suc, post_n, community) %>%
-  summarize(m = mean(med_area)) %>%
-  unite("ID", c(suc, community)) 
+  group_by(ID, post_index) %>%
+  summarize(m = mean(med_area)) 
 
 
 ## Final graph of niche area comparisons
 ggplot(data = m_quant,aes( x = ID, y = m)) + 
   stat_summary(fun.data=quantiles_95, geom="boxplot", aes(width=0.4), fill = "gray") +
-  geom_point(data = m_species, aes(x= ID, y = m, col = scientific, shape = scientific), size = 5)+
+  geom_point(data = m_species, aes(x= ID, y = m, col = scientific, shape = scientific), size = 5) +
   geom_line(data = m_species, aes(x = ID, y = m, col = scientific, group = scientific)) +
   theme_minimal(base_size = 18) + 
   scale_x_discrete("Response|Period", labels = c("ne_1" = "Declined | Post",
@@ -290,12 +188,14 @@ ggplot(data = m_quant,aes( x = ID, y = m)) +
                                                  "p_1" = "Recovered | Post",
                                                  "p_2" = "Recovered | Modern")) + 
    
-  scale_shape_manual(values = c(16,16,16,16,16,17,17,17,17,17), 
+  scale_shape_manual(values = c(16,16,16,16,16,16,17,17,17,17,17,17), 
                      labels = italic_labels) +
   ylab("SEAc") + 
   scale_color_manual("Species", 
                      labels = italic_labels,
                      values = (legend %>% 
+                                 mutate(scientific = factor(scientific, levels = su_order)) %>%
+                                 arrange(scientific) %>%
                        select(scientific, color) %>%
                        unique() %>%
                        filter(scientific %in% c(m_species$scientific)))$color)  +  # or manually assign shapes to species for consistency
@@ -311,6 +211,23 @@ ggplot(data = m_quant,aes( x = ID, y = m)) +
     panel.grid.major.y = element_line(color = "gray85"),
     legend.position = "right"
   )
+
+
+## Bayes and ROPE test
+library(BayesFactor)
+
+# Calculate Probability of Direction (pd)
+
+## comparing declining between periods
+ne_1 = m_quant %>% filter(ID == "ne_1")
+ne_2 = m_quant %>% filter(ID == "ne_2")
+p_1 = m_quant %>% filter(ID == "p_1")
+p_2 = m_quant %>% filter(ID == "p_2")
+pd_value <- mean(ne_1 > ne_2)
+pd_value = mean(p_1 > p_2)
+pd_value = mean(ne_2 > p_1)
+pd_value = mean(ne_2 > p_2)
+pd_value
 
 
 ## SMB area before/after
@@ -387,7 +304,7 @@ overlap.df %>%
   mutate(period = case_when(Community == 1 ~ "early", Community == 2 ~ "late")) %>%
   #filter(!grepl(exclude, sorted_comparison)) %>%
   group_by(Community, post, period) %>%
-  summarize(mean_value = mean(Values)) %>%
+  summarize(mean_value = mean(Values, na.rm = T)) %>%
   ggplot(aes(x = period, y = mean_value, fill = period)) + 
   geom_boxplot() + 
   theme_minimal(base_size = 14) + 
@@ -398,42 +315,6 @@ overlap.df %>%
         axis.title.x = element_blank())
 
 
-## Difference between periods only showing credible differences
-
-overlap.df %>% 
-  arrange(sorted_comparison, post) %>%
-  separate(sorted_comparison, into = c("S1", "S2")) %>%
-  left_join(legend_sci, by = c(S1 = "code")) %>%
-  mutate(s1_sci = factor(scientific, levels = ov.fa)) %>%
-  select(-scientific) %>%
-  left_join(legend_sci, by = c("S2" = "code")) %>%
-  mutate(s2_sci =  factor(scientific, levels = ov.fa)) %>%
-  select(-scientific) %>%
-  mutate(Values = round(as.numeric(Values), digits = 3))  %>%
-  ungroup() %>%  
-  unique() %>%
-  pivot_wider(names_from = Community, values_from = Values) %>%
-  group_by(S1, s1_sci, s2_sci, S2, post) %>%
-  summarize(diff = `2`-`1`) %>%
-  na.omit() %>%
-  ungroup() %>%
-  group_by(S1, s1_sci, s2_sci, S2) %>%
-  summarize(mean = mean(diff), 
-            lower = quantile(diff, .025), 
-            upper = quantile(diff, .95)) %>%
-  ungroup() %>% 
-  mutate(sig = sign(lower) == sign(upper)) %>%
-  filter(sig == T) %>%
-  filter(S1 != "SMB" & S2 != "SMB") %>%
-  ggplot(aes(x = s1_sci, y = s2_sci, fill = mean*100 )) +
-  geom_tile() +
-  scale_fill_viridis_c()+
-  theme_minimal(base_size = 14) +
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = .5)) +
-  labs(fill = expression(Delta * "Overlap (%)")) + 
-  guides(size = "none")
 
 ## Plot of overlap in the two periods
 early = overlap.df %>%
@@ -474,9 +355,6 @@ unique.overlap %>%
         axis.title.y = element_blank(), 
         axis.text.x = element_text(angle = 45, hjust = 1)) +
   labs(fill = "Overlap (%)")
-
-suc %>% colnames()
-
 
 
 ov.fa  = (legend_sci%>% 
@@ -544,7 +422,7 @@ suc_ov.species =  suc_ov %>%
   select(-s1_dup) %>%
   left_join(legend %>%
               mutate(community = as.character(community)), by = c("s1" = "CODE", "Community" = "community")) %>%
-  mutate(scientific = factor(scientific, levels = su.order))
+  mutate(scientific = factor(scientific, levels = su_order))
 
 
 su.order = (suc_ov.species %>% 
@@ -613,6 +491,114 @@ ggplot(data = suc_ov.quant, aes(x = as.factor(Community), y = mean)) +
 
 
 ## incorporating success between periods
+cred.ints = suc_ov.quant %>%
+  unite("ID", suc1, suc2, Community) %>%
+  ungroup() %>%
+  rename(value = mean)
+
+print(cred.ints)
+  
+  
+  
+## juvenile overlaps neg
+smb1.ne.1 = suc_ov.quant %>% filter(suc1 == "SMB1", suc2 == "ne", Community == 1)
+smb1.ne.2 = suc_ov.quant %>% filter(suc1 == "SMB1", suc2 == "ne", Community == 2)
+pd.smb1.ne.comp = mean(smb1.ne.1$mean > smb1.ne.2$mean) 
+
+## juvenile overlaps pos 
+smb1.p.1 = suc_ov.quant %>% filter(suc1 == "SMB1", suc2 == "p", Community == 1)
+smb1.p.2 = suc_ov.quant %>% filter(suc1 == "SMB1", suc2 == "p", Community == 2)
+pd.smb1.p.comp = mean(smb1.p.1$mean > smb1.p.2$mean)
+
+## juvenile smb, overlap comparisons between sensitive and recovered
+
+pd.smb1.comp.pre = mean(smb1.ne.1$mean > smb1.p.1$mean) ## neg/pos between early
+pd.smb.1.comp.post = mean(smb1.ne.2$mean > smb1.p.2$mean) ## neg/pos between post
+pd.smb1.comp.nep.12 = mean(smb1.ne.2$mean > smb1.p.1$mean)
+#pd.smb1.comp.prepost = mean(smb1.ne.1$mean > smb1.p.2$mean) 
+pd.smb1.comp.prepost2 = mean(smb1.ne.2$mean > smb1.p.2$mean)
+
+
+
+## now comparing with medium smb
+
+smb2.ne.2 = suc_ov.quant%>% filter(suc1 == "SMB2", suc2 == "ne", Community == 2)
+smb2.p.2 = suc_ov.quant %>% filter(suc1 == "SMB2", suc2 == "p", Community == 2)
+pd.smb2 = mean(smb2.ne.2$mean > smb2.p.2$mean)
+
+## Are smb2 similar to smb1 declined
+
+pd.smb2.smb1.post.ne = mean(smb2.ne.2$mean > smb1.ne.2$mean)
+pd.smb2.smb1.prepost.ne = mean(smb2.ne.2$mean > smb1.ne.1$mean)
+
+
+## Are smb2 similar to smb1 recovered
+
+pd.smb2.smb1.post.p = mean(smb2.ne.2$mean > smb1.p.2$mean)
+pd.smb2.smb1.prepost.p = mean(smb2.ne.2$mean > smb1.p.1$mean)
+
+
+
+## are smb3 similar?
+
+smb3.ne.1 = suc_ov.quant %>% filter(suc1 == "SMB3", suc2 == "ne", Community == 1)
+smb3.ne.2 = suc_ov.quant %>% filter(suc1 == "SMB3", suc2 == "ne", Community == 2)
+
+
+mean(smb3.ne.1$mean > smb3.ne.2$mean) ## both declined smb3 are the same
+mean(smb3.ne.1$mean > smb1.ne.2$mean) ## smb3 1 
+
+smb3.ne.2 = suc_ov.quant %>% filter(suc1 == "SMB3", suc2 == "p", Community == 1)
+smb3.ne.2 = suc_ov.quant %>% filter(suc1 == "SMB3", suc2 == "p", Community == 2)
+
+
+
+
+
+
+## for loop
+library(tidyverse)
+
+# Get all unique IDs
+ids <- unique(cred.ints$ID)
+
+# Initialize an empty tibble to store results
+pd_results <- tibble(ID1 = character(), ID2 = character(), PD = numeric())
+
+# Loop over all unique ID combinations
+combs <- combn(ids, 2, simplify = FALSE)
+
+for (pair in combs) {
+  id1 <- pair[1]
+  id2 <- pair[2]
+  
+  # Extract posterior samples
+  vec1 <- cred.ints %>% filter(ID == id1) %>% pull(value)
+  vec2 <- cred.ints %>% filter(ID == id2) %>% pull(value)
+  
+  # Calculate PD (Probability that id1 > id2)
+  pd_val <- mean(vec1 > vec2)
+  
+  # Store both directions
+  pd_results <- pd_results %>%
+    add_row(ID1 = id1, ID2 = id2, PD = pd_val) %>%
+    add_row(ID1 = id2, ID2 = id1, PD = 1 - pd_val)
+}
+
+pd_results = pd_results %>%
+  filter(ID1 > ID2,
+         ID1 != ID2) 
+
+pd_results %>%
+  arrange(ID1) %>%
+   filter(PD < .05 | PD > .95) %>%
+  print(n=100) 
+
+
+
+
+
+
 
 
 
@@ -626,13 +612,16 @@ legend.ellips = legend %>% arrange(CODE) %>%
          CODE != "SMB",
          CODE != "BND",
          !(CODE == "RWF" & community == 1)) 
-for(h in 1:2){
+
+plots = list()
+for(h in 2){
   
   dat = data_setup(data_siber %>% filter(group != 12), h)
   
   
   spp=length(names(dat[[2]]))
   
+ 
   dat.corr = dat[[3]] %>%
 
     left_join(baseline_simmr %>%
@@ -642,7 +631,7 @@ for(h in 1:2){
            D15N_c = (iso2 - mean_d15N)/3.4 + 1) %>%
     left_join(legend)
   
-  p = ggplot() + geom_point(dat.corr, mapping = aes(x = D13C_c, y = D15N_c, 
+  p2 = ggplot() + geom_point(dat.corr, mapping = aes(x = D13C_c, y = D15N_c, 
                                                     color = as.factor(group)), alpha = .25) + 
     theme_minimal(base_size = 14)
   
@@ -676,7 +665,7 @@ for(h in 1:2){
   x.vec = as.vector((ellip[,1,])) - mean_d13C
   y.vec = (as.vector((ellip[,2,]))  - mean_d15N)/3.4 + 1
   
-  p = p +
+  p2= p2 +
     geom_path(aes(x = x.vec,
                   y = y.vec,
                   color = (rep(as.factor(unique((dat[[3]]$group))),each = 1000))),
@@ -688,67 +677,21 @@ for(h in 1:2){
                                    filter(community == h))$color, 
                        labels =(legend.ellips %>%
                                    filter(CODE %in% dat.corr$CODE) %>%
-                                  filter(community == h))$CODE,
+                                  filter(community == h))$scientific,
                        name = "Species")+ 
     theme(text = element_text(size = 13)) +
     ylim(1.75,4.25) + xlim(-11,5)
   
   
-  print(p)
-}
+
   
+}
+
+
+### Trophic Position ----------------------------
 
 
 
-### Trophic Position
-
-
-# Filter your data first
-dat_with_residuals <- full_corrected %>%
-  filter(!is.na(D15N_c), !is.na(LENGTH)) %>%
-  group_by(TAXON) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(D15N_c ~ log(LENGTH), data = .x)),
-    augmented = map2(model, data, ~ augment(.x, data = .y))
-  ) %>%
-  select(TAXON, augmented) %>%
-  unnest(augmented) %>%
-  filter(TAXON %nin% c("BND","NRD"))
-
-# Test: compare residuals between periods for each species
-sig_results <- dat_with_residuals %>%
-  filter(TAXON %nin% c("BND", "NRD", "LLS", "ST", "BB", "WS")) %>%
-  group_by(TAXON) %>%
-  summarize(
-    p_value = t.test(.resid ~ period)$p.value,
-    .groups = "drop"
-  ) %>%
-  mutate(
-    significance = case_when(
-      p_value <= 0.001 ~ "***",
-      p_value <= 0.01  ~ "**",
-      p_value <= 0.05  ~ "*",
-      TRUE             ~ ""
-    )
-  )
-
-# Find max δ15N value for each species
-y_positions <- dat_with_residuals %>%
-  group_by(TAXON) %>%
-  summarize(
-    max_y = max(D15N_c, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-# Combine with significance
-sig_results <- sig_results %>%
-  left_join(y_positions, by = "TAXON") %>%
-  mutate(
-    label_y = max_y + 0.15   # You can adjust the offset (0.2) as needed
-  ) %>%
-  left_join(suc, by = c("TAXON" = "CODE")) %>%
-  left_join(legend_sci, by = c("TAXON" = "code"))
 
 ## Plot
 dat_with_residuals %>% 
@@ -790,11 +733,64 @@ dat_with_residuals %>%
   theme(axis.text.x =element_text(face = "italic"), 
         axis.title.x = element_blank()) 
 
-## Maybe plotting just the residuals of the significant ones
+## Do the mean lengths during each period match the mean length of the isotope fish
 
-dat_with_residuals %>% 
-  filter(TAXON %in% c("SMB", "PS", "LT")) %>%
-  ggplot(aes(x = TAXON, y = .resid, col = period)) +
+
+
+
+## Trends in length X
+full %>% 
+  ggplot(aes(x = (LENGTH), y = D13C, col = TAXON)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) + 
+  theme_minimal() +
+  scale_x_log10() +
+  facet_wrap(~period)
+
+
+## Trends in length Y
+full %>% 
+  ggplot(aes(x = (LENGTH), y = D15N, col = TAXON)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) + 
+  theme_minimal() +
+  scale_x_log10() +
+  facet_wrap(~period)
+
+
+
+
+## View baselines Z
+
+baselines %>% 
+  ggplot(aes(x = (as.factor(community)), y = mean_d15N, col = GROUP , group = GROUP)) + 
+  geom_point() + geom_line() +
+  theme_minimal() +
+  ylab("d15N") + 
+  xlab("Community")
+
+
+
+## Summary of fish in webs
+
+summary = full %>% 
+  select(-ISO_YSAMP_N) %>%
+  unique() %>%
+  group_by(period, TAXON) %>%
+  summarize(count = n()) %>%
+  pivot_wider(names_from = period, values_from = count) %>%
+  mutate_all(~ ifelse(is.na(.), 0, .))
+
+## Differences in body size between the two sampling periods
+
+## Note that RWF lengths are messed up and I have to see why theyre not getting found in the fish_measurement csv
+full %>%
+  ggplot(aes(x = TAXON, y = log(LENGTH), fill = period,
+             col = period)) + 
   geom_boxplot() + 
-  geom_jitter()
+  theme_minimal() + geom_jitter()
+
+full %>%
+  filter(TAXON == "RWF")
+
 

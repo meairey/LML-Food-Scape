@@ -2,8 +2,7 @@
 
 ## Ellip function
 
-xax =1;yax=1
-spp = 9; post_n =1; community_n =2
+
 ellipfunc = function( xax,yax,spp,post_n, community_n){
   
   dat.ellipfunc = posterior %>%
@@ -112,6 +111,43 @@ ellip.data = function(xy_length, post_draws, spp, community_N){
 }
 
 
+ellip.data.mod = function(xy_length, post_draws, spp, community_N, posterior){
+  
+  ## Define pop density and body size of species 
+  
+  
+  ## Gather information about species in dataset
+  # Num. of species
+  
+  
+  
+  ## Create a series of x, y coordinate points to plot across. 
+  ### Note - this may need to be adjusted based on ellipses locations
+  x.p = seq(cord_min,cord_max,length.out=xy_length); y.p = x.p 
+  
+  # posterior draws and ellipse size
+  n.posts <- post_draws; p.ell <- 0.90
+  
+  
+  
+  
+  df.ellip = data.frame(
+    spp = rep(rep(1:spp, each = length(x.p)^2*n.posts), community_N),
+    post = rep(rep(rep(1:n.posts, each =length(x.p)^2),spp),  community_N), 
+    xax = rep(rep(rep(rep(x.p, length(x.p)),n.posts),spp),  community_N),
+    yax = rep(rep(rep(rep(y.p,each = length(x.p)),n.posts),spp),  community_N),
+    community = rep(1:community_N, each = (length(x.p)^2)*spp*n.posts),
+    mu_c = rep(posterior$mu_C, each = xy_length^2)
+    )
+  
+  
+  
+  return(df.ellip)
+}
+
+
+
+## Calculate surface area ---------------------
 
 
 calculate_surface_area <- function(matrix) {
