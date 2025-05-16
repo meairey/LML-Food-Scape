@@ -145,6 +145,8 @@ ggplot() +
 
 load("Data/VaryingIsotopesData/Final/rugosity.summary.RData")
 
+rugosity.summary$post %>% unique() %>% length()
+
 rugosity.summary  %>%
   ggplot(aes(x = as.factor(community), y = rug, col = as.factor(community))) + 
   #geom_boxplot() +
@@ -165,6 +167,7 @@ r2 = rugosity.summary %>% filter(community == 2)
 r3 = rugosity.summary %>% filter(community == 3)
 
 pd1 = mean(r1$rug > r2$rug)
+pd2 = mean(r1$rug > r3$rug)
 
 ### DNHP
 nhsp$post %>% unique() %>% length()

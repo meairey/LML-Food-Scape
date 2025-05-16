@@ -531,6 +531,8 @@ print(execution_time)
 #i = 173 after 3.5hrs... so i = 1000
 
 save(points.frame, file = "Data/VaryingIsotopesData/points_frame.RData")
+
+## START HERE load points -----------------------------------------------
 load(file = "Data/VaryingIsotopesData/points_frame.RData")
 
 colnames(points.frame)
@@ -615,6 +617,72 @@ species_Vols_graph = species_vols %>%
 species_Vols_graph
 save(species_Vols_graph, file = "Data/VaryingIsotopesData/species_vols_graph.RData")
 load(file = "Data/VaryingIsotopesData/species_vols_graph.RData")
+
+
+## Contemplating the incorporation of sensitive vs. tolerant natives in this conversation
+summary.vol = species_vols %>% 
+  filter(species == "SMB") %>%
+  left_join(suc, by = c("species" = "CODE")) %>%
+  group_by(suc, post, community) %>%
+  summarize(total_vol = sum(total_vol)) %>%
+  ungroup() %>%
+  group_by(suc, community) %>%
+  summarize(mean = quantiles_95(total_vol)[3], min = quantiles_95(total_vol)[2],
+            max = quantiles_95(total_vol)[4])
+
+species_spec.vol = species_vols %>% 
+  filter(species %nin% c("SMB")) %>%
+  left_join(suc, by = c("species" = "CODE")) %>%
+  group_by(suc, species, community) %>%
+  summarize(mean =  quantiles_95(total_vol)[3], min = quantiles_95(total_vol)[2],
+            max = quantiles_95(total_vol)[4])
+
+
+  
+  #### Load in the legend
+load("Data/IsotopeComparisons/simmr_legend.RData")
+
+load("Data/Legend.col.RData") ## Has colors for plotting individuals species
+
+
+legend_sci = read.csv("Data/IsotopeComparisons/legend.csv")
+
+
+
+
+legend = legend %>% left_join(legend_sci, by = c("CODE" = "code"))
+
+
+ggplot() +
+  geom_bar(data = species_spec.vol, aes(x = suc, y = mean, fill = species), stat = "identity") +
+  facet_wrap(~community, labeller =labeller(community = c("1" = "Pre-Removal", "2" = "Post-Initiation", "3" = "Modern Observation"))) +
+  theme_minimal(base_size = 14) +
+  scale_x_discrete("Response", labels = c("ne" = "Declined", 
+                              "p" = "Recovered",
+                              "na" = "None")) +
+  scale_fill_manual("Species", values = (legend %>% filter(CODE %in% c("BB","CC","CS","LT","MM","PS","RS", "SS", "WS")))$color,
+                    labels =(legend %>% filter(CODE %in% c("BB","CC","CS","LT","MM","PS","RS","SS", "WS")))$scientific ) +
+ # geom_hline(data = summary.vol, aes( yintercept = mean), lty = 2) +
+  ylab("Niche Volume") +
+  theme(legend.position = "bottom")
+  
+  
+
+  
+
+summary.vol$mean[1] - summary.vol$mean[3]
+
+cat = species_spec.vol %>%
+  group_by(community) %>%
+  summarize(total = sum(mean))
+
+cat$total[1] - cat$total[3]
+
+smb_loss = 19631487 
+community_gain = 2097469
+
+(community_gain / smb_loss) * 100
+
 # Total volume of the entire community
 
 
@@ -721,7 +789,11 @@ nhsp.graph = points.frame %>%
 
 nhsp.graph
 
+
+
 save(nhsp.graph, file = "Data/VaryingIsotopesData/nhsp.graph.RData")
+
+## Distance graph
 
 dist.graph.dat = points.frame %>% 
   
