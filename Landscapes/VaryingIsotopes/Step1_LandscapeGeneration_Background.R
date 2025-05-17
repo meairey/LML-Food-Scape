@@ -463,7 +463,13 @@ rugosity.summary %>%
     geom = "pointrange"
   ) 
 
-
+rugosity.summary %>%
+  # filter(post < 6) %>%
+  ggplot(aes(x = as.factor(comm), y = s10z_dat))+
+  stat_summary(
+    fun.data = bayes_cri,   # Use Bayesian credible interval function
+    geom = "pointrange"
+  ) 
 
 sds1 = rugosity.summary %>%
   filter(pos %in% c(1:100)) %>%
