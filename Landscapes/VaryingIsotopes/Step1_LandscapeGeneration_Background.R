@@ -181,9 +181,11 @@ points.gen = points.gen %>%
 #if (file.exists("trying.csv")) file.remove("trying.csv")
 try.csv = data.frame(comm = 99, pos = 99,
                      sdrtrough = 99,
-                     sfd_data = 99,
                      sds_dat = 99,
-                     scl_dat = 99)
+                     s10z = 99)
+
+
+
 write.table(try.csv, file = "trying.csv", row.names = FALSE, sep = ",")
 
 
@@ -355,12 +357,12 @@ for(h in 1:length(unique(points.gen$post))){
     
     r <- raster(elevation_matrix)
 
-    sdrtrout = sdr(r)
-    sa_dat = sa(r) ## 137
+    sdrtrout = sdr(r) ## ! surface area -oughness  energetic complexity r
+   # sa_dat = sa(r) ## 137 ## general surface roughness
     #sfd_dat = sfd(r)
     sds_dat = sds(elevation_matrix) ## functionally distinct peaks
     #scl_dat = scl(rast(elevation_matrix))[1] ## works with zeros does not work with the raster
-    s10z_dat = s10z(elevation_matrix)
+    s10z_dat = s10z(elevation_matrix) ## ten point height
     rug.community[[j]] = data.frame(comm = j, pos = h,
                                     sdrtrough = sdrtrout, ## surface complexity
                                    # sfd_data = sfd_dat,
@@ -395,9 +397,9 @@ rugosity.summary = bind_rows(rugosity.list)
 ## Took this out to figure out why this is crashing
 
 rug.community[[j]] = data.frame(community = j, post = h,
-                                #rough = sa(elevation_matrix), ## general surface roughness
-                                sdrtrough =  sdr(elevation_matrix), ## ! surface area -oughness  energetic complexity r
-                                #point10 = s10z(elevation_matrix), ## ten point height
+                                #rough = sa(elevation_matrix), 
+                                sdrtrough =  sdr(elevation_matrix), 
+                                #point10 = s10z(elevation_matrix), 
                                 # scl_dat = scl(elevation_matrix)[1], ## correlation length
                                 sfd_dat = sfd(elevation_matrix), ## ! 3d fractal dimension - spatian richness of trophic strategies
                                 sds_dat = sds(elevation_matrix)) ## functionally distinct peaks
@@ -433,8 +435,11 @@ total.vol %>% group_by(community, post) %>%
   scale_y_log10()
 
 nhsp %>% 
-  ggplot(aes(x = community, y = values)) + 
-  geom_boxplot() + 
+  ggplot(aes(x = community, y = values)) +
+  stat_summary(
+    fun.data = bayes_cri,   # Use Bayesian credible interval function
+    geom = "pointrange"
+  ) +
   facet_wrap(~metric)
 nhsp$post %>% unique()
 

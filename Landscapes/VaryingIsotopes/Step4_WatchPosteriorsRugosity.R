@@ -3,6 +3,9 @@ cat = read.csv("trying.csv")
 rugosity.summary = cat[-1,] %>%
   pivot_longer(sdrtrough:sds_dat, names_to = "metric", values_to = "value")
 
+
+
+
 rugosity.summary$pos %>% unique() %>% length()
 bayes_cri <- function(x) {
   data.frame(
@@ -20,7 +23,7 @@ rugosity.summary %>%
     fun.data = bayes_cri,   # Use Bayesian credible interval function
     geom = "pointrange"
   )  + 
-  facet_wrap(~metric, scales = "free_y")
+  facet_wrap(~metric, scales = "free_y", labeller = labeller(metric = c("")))
 
 
 
@@ -45,7 +48,13 @@ mean(sds2$sdrtrough > sds3$sdrtrough)
 
 mean(sds1$sds_dat > sds3$sds_dat)
 mean(sds1$sds_dat > sds2$sds_dat)
+mean(sds3$sds_dat > sds2$sds_dat)
 
 
 mean(sds1$s10z_dat > sds2$s10z_dat) ## significant
 
+ ## This metric doesn't seem to be significanat
+mean(sds1$sfd_data > sds2$sfd_data)
+mean(sds2$sfd_data > sds3$sfd_data)
+mean(sds1$sfd_data > sds3$sfd_data)
+ 
