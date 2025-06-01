@@ -1,7 +1,7 @@
 library(tidyverse)
 ## Load in data frames
-fish = read.csv("../AFRP/Data/FISH_MEASUREMENT_LML.csv") 
-sample = read.csv("../AFRP/MA2276_Code/Data/FISH_SAMPLE_2022.csv")
+fish = read.csv("../2. clean_AFRPData/FISH_MEASUREMENT_LML.csv") 
+sample = read.csv("../2. clean_AFRPData/FISH_SAMPLE_2024.csv")
 sites = read.csv("../AFRP/MA2276_Code/Data/SITES.csv")
 shoreline_length = read.csv("../AFRP/MA2276_Code/Data/BEFsites_LengthAndHabitat.csv")
 
@@ -40,13 +40,13 @@ species.early = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 species.late = c("BB", "CC","CS","LT","MM","PS","RS","SMB","SS","WS")
 
 ## Species pre
-species.pre = c("BB", "CC","CS","PS","SMB","SS","WS")
+species.pre = c("BB", "CC","CS","LT","PS","SMB","SS","WS")
 
 ## Set parameters for the model run
 year_max = 2000
 year_min = 2000
 species = species.pre
 ## Graphing 
-legend = data.frame(group = c(1:7), 
+legend = data.frame(group = c(1:8), 
                     species  = species.pre)
 

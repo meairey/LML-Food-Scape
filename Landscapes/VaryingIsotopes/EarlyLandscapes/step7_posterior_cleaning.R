@@ -14,7 +14,7 @@ source("Data/Models/functions.R")
 source("Landscapes/VaryingIsotopes/EarlyLandscapes/step1_LML_source.R")
 
 n.posts = 3000
-n_species = 8
+n_species = 9 ## Change back to 8 if you remove LT
 n_years = year_max - year_min
 n_sites = 32
 ## Posterior data frame --------------------

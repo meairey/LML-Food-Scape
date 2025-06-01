@@ -32,9 +32,9 @@ temp.full[21,2] = 12.8
 ## LML Data 
 LML.data = read.csv("Data/LML_data_cpue.csv")
 
-
+## Added in LT I'm not quite sure why it had been left out?
 ## What species to include in the early period
-species.early = c("BB", "CC","CS","MM","PS","SMB","SS","WS")
+species.early = c("BB", "CC","CS","LT","MM","PS","SMB","SS","WS")
 ## From the catch data i'm excluding fish occuring in abundance of <10 during period years
 ## what species to include in the late period
 #species.late = c("CC","CS","MM","PS","SMB","WS")  ## Going to try to simulate data for these species in the interim
@@ -45,6 +45,6 @@ year_max = 2004
 year_min = 2001
 species = species.early
 ## Graphing 
-legend = data.frame(group = c(1:8), 
+legend = data.frame(group = c(1:9), 
                     species  = species.early)
 

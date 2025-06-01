@@ -1,9 +1,10 @@
 ## Checking dataframe
 ## Access Database
-data = read.csv("Data/IsotopeComparisons/Clean/SI_MEASUREMENT.csv")
-sample.clean = read.csv("Data/IsotopeComparisons/Clean/SI_SAMPLE.csv")
+
+data = read.csv("../1.clean_isotope/SI_MEASUREMENT.csv")
+sample.clean = read.csv("../1.clean_isotope/SI_SAMPLE.csv")
 da.acc = left_join(data, sample.clean, by = "ISO_YSAMP_N") %>%
-  select(-corrected)
+  select(-corrected,-Corrected)
 ## Missing samples from JML File
 
 mi.sa = read.csv("Data/IsotopeComparisons/Clean/missing_sample.csv") %>% unique()
@@ -120,3 +121,4 @@ backtrace.pre = read.csv("Data/JML.Data.Master.csv") %>%
   summarize(mean_C = mean((iso_1)), sd_C = sd(iso_1),
             mean_N = mean((iso_2)), sd_N = sd(iso_2)) 
 save(backtrace.early, file = "Data/VaryingIsotopesData/PreData/backtrace_pre.RData")
+

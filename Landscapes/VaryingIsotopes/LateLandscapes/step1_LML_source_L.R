@@ -5,6 +5,8 @@ sample = read.csv("../AFRP/MA2276_Code/Data/FISH_SAMPLE_2022.csv")
 sites = read.csv("../AFRP/MA2276_Code/Data/SITES.csv")
 shoreline_length = read.csv("../AFRP/MA2276_Code/Data/BEFsites_LengthAndHabitat.csv")
 
+read.csv("../literate-potato/Data/FISH_SAMPLE_2024.csv")
+
 ## Values
 epsilon <- 1e-6
 n.iso = 2

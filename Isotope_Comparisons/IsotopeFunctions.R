@@ -26,6 +26,21 @@ n.points = 1000
 
 
 
+data_setup = function(data_input, com_num){
+  # Pre combo_lake = combo_2023 %>% filter(Water == lake$Water[[com_num]])
+  #combo_lake = data_codes %>% 
+   # filter(community == com_num)
+  #filter(community == lake$Community[[com_num]])
+  data = data_input %>% 
+    filter(community == com_num)
+  data = data[order(data$group),] %>% as.data.frame() 
+  siber.example <- createSiberObject(data)
+  posterior <- siberMVN(siber.example, parms, priors)
+  
+  both = list(siber.example, posterior, data)
+  return(both)
+}
+
 
 overlap = function(data_input, comm, dr, posterior){
   ## Remove this later

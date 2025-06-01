@@ -44,7 +44,7 @@ su_order <- c("A. nebulosus", "C. commersonii","L. cornutus", "P. cylindraceum",
 
 ## Legend
 ## Legend
-species.early = c("BB", "CC","CS","MM","PS","SMB","SS","WS") # 8 long
+species.early = c("BB", "CC","CS","LT","MM","PS","SMB","SS","WS") # 8 long
 
 species.pre = c("BB", "CC","CS","PS","SMB","SS","WS") #7 long
 
@@ -52,7 +52,8 @@ species.late =  c( "CC","CS","LT","MM","PS","RS","SMB","SS","WS") # 9 long
 ## Legend for joining together the posteriors - includes group/community combinations
 legend = data.frame(group = as.character(c(1:9)), 
                     A = c(species.pre, rep("NA", 2)),
-                    B = c(species.early, rep("NA",1)),
+                    #B = c(species.early, rep("NA",1)),
+                    B = species.early,
                     C  = species.late
                      
                     )%>%
@@ -70,7 +71,7 @@ bayes_cri <- function(x) {
   )
 }
 
-
+`%nin%` = Negate(`%in%`)
 
 mean.legend = legend$species %>% unique() %>% as.data.frame() %>% 
   na.omit() %>% 
@@ -103,18 +104,49 @@ summary.vol = species_vols %>%
   summarize(total_vol = sum(total_vol)) %>%
   ungroup() %>%
   group_by(suc, community) %>%
-  summarize(mean = quantiles_95(total_vol)[3], min = quantiles_95(total_vol)[2],
-            max = quantiles_95(total_vol)[4])
+  summarize(mean = as.numeric(bayes_cri(total_vol))[1],
+            min =  as.numeric(bayes_cri(total_vol))[2],
+            max =  as.numeric(bayes_cri(total_vol))[3])
 
 species_spec.vol = species_vols %>% 
   filter(species %nin% c("SMB")) %>%
   left_join(suc, by = c("species" = "CODE")) %>%
   group_by(suc, species, community) %>%
-  summarize(mean =  quantiles_95(total_vol)[3], min = quantiles_95(total_vol)[2],
-            max = quantiles_95(total_vol)[4])
+  summarize(mean = as.numeric(bayes_cri(total_vol))[1],
+            min =  as.numeric(bayes_cri(total_vol))[2],
+            max =  as.numeric(bayes_cri(total_vol))[3])
 
 
-  #### Load in the legend
+## SMB vs. community graph
+
+species_vols %>%
+  left_join(suc, by = c("species" = "CODE")) %>%
+  mutate(suc = case_when(species == "SMB" ~ "M. dolomieu", 
+                         species != "SMB" ~ "Community")) %>%
+  group_by(suc, post, community) %>%
+  summarize(total_vol = sum(total_vol)) %>%
+  ungroup()  %>%
+  group_by(suc, community) %>%
+  summarize(mean = as.numeric(bayes_cri(total_vol))[1],
+            min =  as.numeric(bayes_cri(total_vol))[2],
+            max =  as.numeric(bayes_cri(total_vol))[3]) %>%
+  ggplot(aes(x = suc, y = mean, fill = community)) + 
+  geom_bar(stat = "identity" , 
+                     aes(alpha = suc)) + 
+  facet_wrap(~community, labeller = labeller(community = c("1" = "Pre-Removal", "2"= "Post-Initiation", "3" = "Modern Observation"))) +
+  theme_minimal(base_size = 27) +
+  scale_fill_manual( values = wes_palette("Darjeeling1",
+                                          type = "discrete", n = 3), 
+                     labels = c("1" = "P.R.", "2" = "P.I.", "3" = "M.O."))+
+  scale_alpha_manual(
+    values = c("SMB" = 1, "Community" = .5)) +
+  theme(legend.position = "none",
+        axis.title.x = element_blank(), 
+        axis.text.x = element_text(angle = 45,  hjust = 1, vjust = 1)) +
+  ylab("Niche Volume")
+
+  
+ #### Load in the legend
 load("Data/IsotopeComparisons/simmr_legend.RData")
 
 load("Data/Legend.col.RData") ## Has colors for plotting individuals species
@@ -139,7 +171,10 @@ ggplot() +
  # geom_hline(data = summary.vol, aes( yintercept = mean), lty = 2) +
   ylab("Niche Volume") +
   theme(legend.position = "bottom")
-  
+
+
+## I'm going to try to add a fourth graph into this one that has bar plots of the total volume for each period
+
 
 ### Rugosity Figures
 
@@ -148,7 +183,7 @@ load("Data/VaryingIsotopesData/Final/rugosity.summary.RData")
 rugosity.summary$post %>% unique() %>% length()
 
 rugosity.summary  %>%
-  ggplot(aes(x = as.factor(community), y = rug, col = as.factor(community))) + 
+  ggplot(aes(x = as.factor(comm), y = rug, col = as.factor(comm))) + 
   #geom_boxplot() +
   theme_minimal(base_size = 14) + 
   theme(legend.position = "none",
@@ -177,10 +212,10 @@ load("Data/VaryingIsotopesData/Final/nhsp.RData")
 nhsp %>%
   ggplot(aes(x = as.factor(community), y = values, col = as.factor(community))) + 
   #geom_boxplot() +
-  theme_minimal(base_size = 14) + 
+  theme_minimal(base_size = 15) + 
   theme(legend.position = "none",
         axis.title.x = element_blank()) +
-  ylab("DNHP") + xlab("Period") +
+  ylab("Distance to Next Highest Peak") + xlab("Period") +
   scale_x_discrete(labels = c("1" = "P.R.", "2" = "P.I.", "3" = "M.O.")) +
   facet_wrap(~metric, scales = "free",
              labeller = labeller("metric" = c("mean" = "Mean DNHP", "sd" = "SD DNHP"))) +
@@ -193,11 +228,11 @@ nhsp %>%
                      labels = c("1" = "P.R.", "2" = "P.I.", "3" = "M.O.")) 
 
 ## Any sig differences between 1st and ... for mean
-nhsp.1 = nhsp %>% filter(metric == "mean", 
+nhsp.1 = nhsp %>% filter(metric == "sd", 
                 community == 1)
-nhsp.2 = nhsp %>% filter(metric == "mean", 
+nhsp.2 = nhsp %>% filter(metric == "sd", 
                          community == 2)
-nhsp.3 = nhsp %>% filter(metric == "mean", 
+nhsp.3 = nhsp %>% filter(metric == "sd", 
                          community == 3)
 
 mean(nhsp.1$values > nhsp.2$values)

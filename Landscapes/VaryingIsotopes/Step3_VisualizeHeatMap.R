@@ -117,6 +117,7 @@ posterior %>%
   scale_x_discrete(labels = c("1" = "Pre","2" = "Early", "3" = "Late")) +
   scale_y_log10() 
 
+
 ##
 
 posterior %>% 
@@ -249,92 +250,132 @@ points.gen.mean =  posterior.mean %>%
   unite("lookup", c(community, species, post), remove = F) %>%
   arrange(community, species, post) %>%
   na.omit()
+# Example global grid bounds
+x_range <- c(-cord_max, cord_max)
+y_range <- c(-cord_max, cord_max)
+grid_size <- 0.01
+
+x_seq <- seq(x_range[1], x_range[2], by = grid_size)
+y_seq <- seq(y_range[1], y_range[2], by = grid_size)
+global_grid <- expand.grid(x1 = x_seq, y1 = y_seq)
 
 
 execution_time <- system.time({
 for(i in 1:dim(points.gen.mean)[1]){
+  print(i)
   ## Create the subset of the posterior your're going to use
-  subset = points.gen.mean %>% 
-  filter(lookup == points.gen.mean$lookup[i])
-
-  mu = c(subset$mu_C, subset$mu_N) # Ensure mu_C and mu_N are numeric
-  sigma = matrix(
-        c(subset$Sigma_1_1, subset$Sigma_1_2, subset$Sigma_2_1, subset$Sigma_2_2), # Build the covariance matrix
-        nrow = 2, byrow = TRUE)
+## Create the subset of the posterior your're going to use
+    subset = points.gen.mean %>% 
+    filter(lookup == points.gen.mean$lookup[i])
   
-  inv_sigma <- solve(sigma)
+    
+    mu = c(subset$mu_C, subset$mu_N) # Ensure mu_C and mu_N are numeric
+    sigma = matrix(
+          c(subset$Sigma_1_1, subset$Sigma_1_2, subset$Sigma_2_1, subset$Sigma_2_2), # Build the covariance matrix
+          nrow = 2, byrow = TRUE)
+    
+    inv_sigma <- solve(sigma)
+    
+    # Generate points in the ellipse
   
-  # Generate random points from the multivariate normal distribution
-
-  points <- mvrnorm(n = n_points.mean, mu = mu, Sigma = sigma)
-
-  
-  
-  # Calculate the Mahalanobis distance for each point
-  mahalanobis_dist <- apply(points, 1, function(pt) t(pt - mu) %*% inv_sigma %*% (pt - mu))
-  
-  # Keep only points within the ellipse
-  points_in_ellipse <- points[mahalanobis_dist <= threshold, ]  %>%
-    as.data.frame() %>%
-  mutate(x1_grid = round(V1 / grid_size) * grid_size,
-         x2_grid = round(V2 / grid_size) * grid_size,
-         mean_area = ellipse_area) %>%
-    unique()
-  
-  
-  
+    
     # Compute ellipse area
-  eigen_values <- eigen(sigma)$values
-  a <- sqrt(eigen_values[1]) * threshold
-  b <- sqrt(eigen_values[2]) * threshold
-  ellipse_area <- pi * a * b
+    eigen_values <- eigen(sigma)$values
+    a <- sqrt(eigen_values[1]) * threshold
+    b <- sqrt(eigen_values[2]) * threshold
+    ellipse_area <- pi * a * b
+    
+    ## Generating a grid
+    
+
+    mahal = mahalanobis(global_grid, center = mu, cov = sigma)
+
+
+    
+
+    
+    # Keep only points within the ellipse
+    points_in_ellipse = global_grid[mahal <= threshold, ] %>% 
+      as.data.frame() 
+      
+    points_in_ellipse$z = apply(points_in_ellipse, 1, function(point) z_func(point[1], point[2], mu, sigma))
+    
   
-  ## Calculate z string
+    
+
+    
   
-  z <- apply(points_in_ellipse, 1, function(point) z_func(point[1], point[2], mu, sigma))
-  
-  
-  
-  ellipse_points <- data.frame(points_in_ellipse) %>%
-    mutate(lookup  = subset$lookup)   %>%
-   mutate(z_string = z, mean_area = ellipse_area)
-  
-  
-  points.list.mean[[i]] = ellipse_points
+  points.list.mean[[i]] = points_in_ellipse %>%
+      mutate(lookup = points.gen.mean$lookup[i])
   
 
   
 }
   
-## Snap points to a grid and them summarize across that grid
-grid_size <- .01
 
-points.frame.mean <- bind_rows(points.list.mean)%>% 
-  separate(lookup, into = c("community", "group", "post")) %>%
-  left_join(posterior.mean %>%
-              select(community, species, post, mass.avg, tot_abund) %>%
-              mutate(community = as.character(community), 
-                     group = as.character(species), 
-                     post = as.character(post)), 
-            by = c("community", "group", "post")) %>%
-  select(-species) %>%
-  rename(xax = X1, yax = X2) %>%
-  mutate(x1_grid = round(xax / grid_size) * grid_size,
-         x2_grid = round(yax / grid_size) * grid_size) %>% ## Snaps to grid  
-  mutate(z_string.mod = z_string * tot_abund * (mass.avg ^ .75)) %>%
-  ungroup() 
 })
 
 
 print(execution_time)
 #save(points.frame.mean, file = "Data/VaryingIsotopesData/points_frame.mean.RData")
+#save(file = "Data/VaryingIsotopeData/points_frame.mean.RData")
+#load(file =  "Data/VaryingIsotopesData/points_frame.mean.RData")
 
-load(file =  "Data/VaryingIsotopesData/points_frame.mean.RData")
+mean_baselines = baseline_simmr %>% 
+  filter(GROUP == "B") %>%
+  mutate(community = case_when(community == "early" ~ 1, community == "late" ~ 3))  %>%
+  bind_rows(mean_baselines %>% 
+              filter(community == 1) %>%
+              mutate(community = 2)) %>%
+  mutate(community = as.character(community))
+
+points.frame.mean = bind_rows(points.list.mean)%>% 
+    separate(lookup, into = c("community", "group", "post")) %>%
+    left_join(posterior %>%
+                select(community, group, post, mass.avg, tot_abund, species) %>%
+                mutate(community = as.character(community), 
+                       group = as.character(group), 
+                       post = as.character(post)), 
+              by = c("community", "group", "post")) %>%
+    #select(-species) %>%
+    mutate(z_string = z * tot_abund * (mass.avg ^ .75)) %>%
+    ungroup() %>%
+  left_join(back.trace %>% 
+              mutate(community = as.character(community)), by = c("community")) %>%
+  mutate(x1 = (x1 * sd_C) + mean_C, 
+         y1 = (y1 * sd_N) + mean_N) %>%
+  left_join(mean_baselines, by = "community" ) %>% 
+  mutate(mean_d13C = as.numeric(mean_d13C),
+         x1 = as.numeric(x1)) %>%
+  ungroup() %>%
+  mutate(x1 = x1 - (as.numeric(mean_d13C)),
+         y1 =  (y1 - mean_d15N)/3.4 + 1)
+
+points.frame.mean 
+
+
+
+
+## Points.frame.mean
+
+points.frame.mean %>% 
+  group_by(community, x1, y1) %>%
+  summarize(z.sum = sum(z_string)) %>%
+  ggplot(aes(x = x1, y = y1, fill = log10(z.sum))) + 
+  geom_raster() +
+ # geom_tile() + 
+  scale_fill_viridis() +
+  theme_minimal(base_size = 16) + 
+  labs(fill = "Height (log10(Z))") +
+  xlab("d13C") +
+  ylab("d15N") + 
+  facet_wrap(~community, labeller = labeller(community = c("1" = "Pre-Initiation", "2"= "Post-Initiation", "3" = "Modern Observation"))) +
+  ylab("Trophic Position") + xlab("δ13C (corrected)") 
+
 ## Looking at what the total volume of each species is
 v = points.frame.mean  %>% 
-  group_by(community, post, group, mean_area, x1_grid, x2_grid) %>%
-  summarize(z.mean = mean(z_string), 
-            z.mean.mod = mean(z_string.mod))
+  group_by(community, post, x1, y1) %>%
+  summarize(z.mean = sum(z))
 
 v %>% ungroup() %>%
   group_by(community, group, mean_area) %>%
@@ -378,10 +419,10 @@ v %>%
   na.omit() %>%
   #left_join(back.trace) %>%
   #mutate(xax = xax*sd_C + mean_C, yax = yax*sd_N + mean_N) %>%
-  group_by(community, post, x1_grid, x2_grid) %>%
+  group_by(community, post, x1, y1) %>%
   summarize(z_string = sum(z.mean)) %>%
   ungroup() %>%
-  ggplot(aes(x = x1_grid, y = x2_grid, fill = (z_string))) +
+  ggplot(aes(x = x1, y = y1, fill = (z_string))) +
   #geom_point() +
   geom_tile() +
   scale_fill_viridis() +
@@ -395,8 +436,9 @@ v %>%
 # Facet wrap heat maps to see individual ellipses
 points.frame.mean %>% 
   mutate(group = as.character(group)) %>%
-  left_join(mean.legend,by = c("group" = "group")) %>% 
+ # left_join(mean.legend,by = c("group" = "group")) %>% 
   na.omit() %>%
-  ggplot(aes(x= x1_grid, y = x2_grid, col =as.factor(community))) +
-  geom_point(alpha = .15) + 
+  ggplot(aes(x= x1, y = y1, col =z)) +
+ # geom_point(alpha = .15) + 
+  geom_tile() +
   facet_wrap(~species) 

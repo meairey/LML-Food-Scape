@@ -29,7 +29,7 @@ step_a = LML.data %>%
 early.sp = (step_a %>% 
   group_by(SPECIES) %>%
   summarize(total_catch = sum(mean_catch)) %>%
-  filter(total_catch > 10))$SPECIES
+  filter(total_catch > 6))$SPECIES ## I have added in lake trout by modifying this lower floor. Set at 10 to exclude rare
 
 
 ### New Catch Model
@@ -38,6 +38,7 @@ early.sp = (step_a %>%
 
 ## Load in the data that says which sites to pair
 rep_group = read.csv("Data/rep_groups.csv") ## Round values for modifying p
+
 
 
 ## Shoreline length
@@ -116,7 +117,7 @@ effort = step_a %>%
   mutate_all(~replace(., is.na(.), epsilon)) %>% # Make all NA's a very small value
   t()
 # Save object
-save(effort, file = "Data/EarlyData/early_effortdata.RData")
+save(effort, file = "Data/VaryingIsotopesData/EarlyData/early_effortdata.RData")
 
 ### Species data matrix 
 # Get the list of unique species
@@ -161,4 +162,4 @@ for (i in seq_along(species)) {
   array_data[,,i] <- species_matrices[[i]]
 }
 
-save(file = "Data/EarlyData/Early_arraydata.RData", array_data)
+save(file = "Data/VaryingIsotopesData/EarlyData/Early_arraydata.RData", array_data)

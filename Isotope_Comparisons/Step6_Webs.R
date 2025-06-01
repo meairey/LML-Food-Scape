@@ -1,4 +1,8 @@
+library(SIBER)
 h1 <- 1
+load( file = "Data/VaryingIsotopesData/data.siber.RData")
+load( file = "Data/VaryingIsotopesData/data.siber.RData")
+legend.ellips = legend
 dat1 <- data_setup(data_siber %>% filter(group != 12), h1)
 spp1 <- length(names(dat1[[2]]))
 
@@ -48,6 +52,7 @@ p1 <- ggplot() +
   theme_minimal(base_size = 14) +
   ylab("Trophic Position") + xlab("δ13C (corrected)") +
   ylim(1.75, 4.25) + xlim(-11, 5)
+
 
 
 ## Second graph
@@ -106,7 +111,7 @@ p2 <- ggplot() +
 p2
 
 
-grid.arrange(p1, p2)
+grid.arrange(p1, p2, ncol = 2)
 
 
 

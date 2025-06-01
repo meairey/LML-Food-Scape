@@ -67,9 +67,9 @@ z_func <- function(X1, X2, mu, sigma) {
 
 
 ## Legend
-species.early = c("BB", "CC","CS","MM","PS","SMB","SS","WS") # 8 long
+species.early = c("BB", "CC","CS","LT", "MM","PS","SMB","SS","WS") # 8 long ## changed to 9 to add lake trout
 
-species.pre = c("BB", "CC","CS","PS","SMB","SS","WS") #7 long
+species.pre = c("BB", "CC","CS","LT","PS","SMB","SS","WS") #7 long
 
 species.late =  c( "CC","CS","LT","MM","PS","RS","SMB","SS","WS") # 9 long
 
@@ -77,8 +77,9 @@ species.late =  c( "CC","CS","LT","MM","PS","RS","SMB","SS","WS") # 9 long
 
 ## Legend for joining together the posteriors - includes group/community combinations
 legend = data.frame(group = as.character(c(1:9)), 
-                    A = c(species.pre, rep("NA", 2)),
-                    B = c(species.early, rep("NA",1)),
+                    A = c(species.pre, rep("NA", 1)),
+                   # B = c(species.early, rep("NA",1)),# when removed lake trout
+                    B = species.early,
                     C  = species.late
                      
                     )%>%
@@ -134,7 +135,14 @@ posterior %>%
 
 
 
-
+posterior %>% 
+  filter(species == "LT") %>%
+  ggplot(aes(x = as.factor(community), y = tot_abund)) + 
+  geom_boxplot()
+posterior %>% 
+  filter(species == "LT") %>%
+  ggplot(aes(x = as.factor(community), y = mass.avg)) + 
+  geom_boxplot()
 
 
 
@@ -145,7 +153,7 @@ points.list = list()
 total.vol.list = list() ## Added this in to make a list of total volumes
 nhsp.list = list()
 rugosity.list = list()
-n_points = 500000
+#n_points = 500000
 #n_points = 10000
 grid_size = .01
 
@@ -154,10 +162,10 @@ load("Data/VaryingIsotopesData/pointsgen.RData")
 
 ## script setup
 n_species = 10
-n.posts = 20
+n.posts = 5
 cord_min = -7; cord_max = 7
 # Resolution
-xy_length = 50
+
 
 
 
@@ -171,18 +179,29 @@ confidence_level <- 0.40 # Confidence level for the ellipse
 threshold <- qchisq(confidence_level, df = 2) # df = 2 for 2D
 
 
+pointsgen = posterior %>%
+  arrange(community, group, post) %>%
+  unite("lookup", c(community, group, post), remove= F) %>%
+  select(lookup, species, community, post, Sigma_1_1, Sigma_2_1,
+         Sigma_1_2, Sigma_2_2, mass.avg, tot_abund, mu_1, mu_2) %>%
+  rename("mu_C" = "mu_1",
+         "mu_N" = "mu_2")
 
-
-points.gen = points.gen %>%
-  filter(post %in% c(1:500))
+points.gen = pointsgen %>%
+  filter(post %in% c(1:200))
 
 ## Run the loop and time it ------------------------------------------------
 # Delete the file if it exists
 #if (file.exists("trying.csv")) file.remove("trying.csv")
 try.csv = data.frame(comm = 99, pos = 99,
-                     sdrtrough = 99,
+                     sdr_dat = 99,
+                     #sfd_data = 99,
                      sds_dat = 99,
+                     scl_dat = 99,
                      s10z = 99)
+
+
+
 
 
 
@@ -205,6 +224,7 @@ global_grid <- expand.grid(x1 = x_seq, y1 = y_seq)
 execution_time <- system.time({
   
 for(h in 1:length(unique(points.gen$post))){
+
   print(paste("posterior", h)) 
 
   points.gen.post = points.gen %>% filter(post == h)
@@ -336,7 +356,6 @@ for(h in 1:length(unique(points.gen$post))){
   rug.community = list()
   for(j in 1:length(unique(z.mod$community))){
 
-
     elevation_matrix = z.mod %>%
       mutate(total_volume = (total_volume)) %>%
       filter(community == j, post ==h) %>%
@@ -345,7 +364,7 @@ for(h in 1:length(unique(points.gen$post))){
       arrange(desc(yax)) %>%
       column_to_rownames(var = "yax") %>%
       #mutate(across(everything(), ~ ifelse(is.na(.), rnorm(sum(is.na(.)), mean = 0, sd = 1), .))) %>%
-      #mutate(across(everything(), ~ ifelse(is.na(.), 0, .))) %>%
+     # mutate(across(everything(), ~ ifelse(is.na(.), 0, .))) %>%
       select(-post, -community) %>%
       as.matrix()
     
@@ -354,20 +373,26 @@ for(h in 1:length(unique(points.gen$post))){
 
     
     
-    
     r <- raster(elevation_matrix)
 
-    sdrtrout = sdr(r) ## ! surface area -oughness  energetic complexity r
+    sdr_dat = sdr(r) ## ! surface area -oughness  energetic complexity r
    # sa_dat = sa(r) ## 137 ## general surface roughness
-    #sfd_dat = sfd(r)
+  #  sfd_dat = sfd(as.matrix(elevation_matrix %>% as.data.frame() %>%
+     # mutate(across(everything(), ~ ifelse(is.na(.), 0.01, .)))))
     sds_dat = sds(elevation_matrix) ## functionally distinct peaks
-    #scl_dat = scl(rast(elevation_matrix))[1] ## works with zeros does not work with the raster
+    scl_dat = scl(as.matrix(elevation_matrix %>% as.data.frame() %>%
+      mutate(across(everything(), ~ ifelse(is.na(.), 0, .)))))[1] 
+    
+    
+    ## works with zeros does not work with the raster
     s10z_dat = s10z(elevation_matrix) ## ten point height
+    
+    
     rug.community[[j]] = data.frame(comm = j, pos = h,
-                                    sdrtrough = sdrtrout, ## surface complexity
-                                   # sfd_data = sfd_dat,
-                                    sds_dat = sds_dat, ## functionally distinct peaks
-                                   # scl_dat = scl_dat, ## Correlation length
+                                    sdr_dat = sdr_dat, ## surface complexity
+                                     #sfd_data = sfd_dat,
+                                     sds_dat = sds_dat, ## functionally distinct peaks
+                                     scl_dat = scl_dat, ## Correlation length
                                      s10z_dat = s10z_dat)
 
     
@@ -396,13 +421,6 @@ rugosity.summary = bind_rows(rugosity.list)
 
 ## Took this out to figure out why this is crashing
 
-rug.community[[j]] = data.frame(community = j, post = h,
-                                #rough = sa(elevation_matrix), 
-                                sdrtrough =  sdr(elevation_matrix), 
-                                #point10 = s10z(elevation_matrix), 
-                                # scl_dat = scl(elevation_matrix)[1], ## correlation length
-                                sfd_dat = sfd(elevation_matrix), ## ! 3d fractal dimension - spatian richness of trophic strategies
-                                sds_dat = sds(elevation_matrix)) ## functionally distinct peaks
 
 
 
@@ -423,12 +441,14 @@ bayes_cri <- function(x) {
 
 
 
-save(total.vol,file = "Data/VaryingIsotopesData/total.vol.frame.RData")
-save(nhsp, file = "Data/VaryingIsotopesData/nhsp.RData")
-save(rugosity.summary, file = "Data/VaryingIsotopesData/rugosity.summary.RData")
+#save(total.vol,file = "Data/VaryingIsotopesData/total.vol.frame.RData")
+#save(nhsp, file = "Data/VaryingIsotopesData/nhsp.RData")
+load(file = "Data/VaryingIsotopesData/Final/nhsp.RData")
+#save(rugosity.summary, file = "Data/VaryingIsotopesData/rugosity.summary.RData")
+load("Data/VaryingIsotopesData/total.vol.frame.RData")
 
 total.vol %>% group_by(community, post) %>%
-  summarize(total_vol = sum(total_vol)) %>%
+  summarize(total_vol = sum(total_vol * .01)) %>%
 
   ggplot(aes(x = community, y = total_vol)) + 
   geom_boxplot() +

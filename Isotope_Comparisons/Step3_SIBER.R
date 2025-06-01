@@ -97,7 +97,7 @@ data_siber = data_simmr %>%
   filter(total > 3) %>%
   arrange(community, group) %>%
   select(iso1, iso2,group, community) ## Does still have common shiner
-
+save(data_siber, file = "Data/VaryingIsotopesData/data.siber.RData")
 
 
 data_siber %>%

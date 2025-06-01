@@ -69,7 +69,7 @@ su_order <- c("A. nebulosus", "C. commersonii","L. cornutus", "P. cylindraceum",
 
 
 italic_labels = c(expression(italic(A.~nebulosus)),
-                  expression(italic(C.~commersonii)),
+                  #expression(italic(C.~commersonii)),
                   expression(italic(L.~cornutus)), 
                   expression(italic(P.~cylindraceum)),
                   expression(italic(S.~atromaculatus)),
@@ -78,7 +78,7 @@ italic_labels = c(expression(italic(A.~nebulosus)),
                   expression(italic(L.~gibbosus)),
                   expression(italic(O.~mordax)),
                   expression(italic(S.~namaycush)),
-                  expression(italic(S.~salar)),
+                  #expression(italic(S.~salar)),
                   expression(italic(U.~limi))
                   )
 
@@ -151,7 +151,7 @@ med_area %>%
 med_area.1 = med_area %>% 
   filter(CODE %nin% c("SMB", "SMB1", "SMB2", "SMB3")) %>%
   left_join(suc) %>%
- #filter(suc != "na")%>%
+ filter(suc != "na")%>%
   unite("ID", c(suc, community), remove = F) %>%
   ungroup( ) %>%
   select(ID, post_n, med_area, CODE, color) %>%
@@ -183,10 +183,11 @@ ggplot(data = m_quant,aes( x = ID, y = m)) +
   geom_point(data = m_species, aes(x= ID, y = m, col = scientific, shape = scientific), size = 5) +
   geom_line(data = m_species, aes(x = ID, y = m, col = scientific, group = scientific)) +
   theme_minimal(base_size = 18) + 
-  scale_x_discrete("Response|Period", labels = c("ne_1" = "Declined | Post",
+  scale_x_discrete("Response|Period",
+                   labels = c("ne_1" = "Declined | Post",
                                                  "ne_2" = "Declined | Modern",
-                                                 "p_1" = "Recovered | Post",
-                                                 "p_2" = "Recovered | Modern")) + 
+                                                 "p_1" = "Emerging | Post",
+                                                 "p_2" = "Emerging | Modern")) + 
    
   scale_shape_manual(values = c(16,16,16,16,16,16,17,17,17,17,17,17), 
                      labels = italic_labels) +

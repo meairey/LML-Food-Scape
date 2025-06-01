@@ -3,6 +3,7 @@ library(rjags)
 setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML-Food-Scape/")
 source("Landscapes/VaryingIsotopes/LateLandscapes/step1_LML_source_L.R")
 
+
 ## I'm a little worried that the multiple observation issue is going to catch up again here. But, for now, I'm simplifying this by just taking average catch and average effort for each site in each year. Not putting in each separately.
 
 step_a = LML.data %>%

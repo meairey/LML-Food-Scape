@@ -14,7 +14,7 @@ source("Data/Models/functions.R")
 source("Landscapes/VaryingIsotopes/PreLandscapes/step1_LML_source_pre.R")
 
 n.posts = 3000
-n_species = 7
+n_species = 8
 ## Posterior data frame --------------------
 ## Combining chains 
 
